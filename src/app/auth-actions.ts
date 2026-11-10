@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/context";
@@ -28,7 +29,12 @@ export async function signUp(formData: FormData) {
   const { email, password } = credentials(formData);
   if (password.length < 8) fail("/login", "Пароль має бути щонайменше 8 символів");
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  const origin = (await headers()).get("origin");
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: origin ? { emailRedirectTo: origin + "/auth/callback" } : undefined,
+  });
   if (error) fail("/login", error.message);
   if (!data.session) {
     redirect(`/login?info=${encodeURIComponent("Ми надіслали лист для підтвердження пошти. Підтвердіть і увійдіть.")}`);
