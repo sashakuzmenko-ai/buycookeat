@@ -3,13 +3,14 @@ import { getContext } from "@/lib/context";
 import { Notice } from "@/components/Notice";
 import { addDays, formatDate, formatWeekday, parseWeekParam, todayISO, weekDays } from "@/lib/dates";
 import { MEAL_LABELS, type MealType } from "@/lib/seed-data";
-import { addPlanEntry, autoFillWeek, clearWeek, removePlanEntry } from "./actions";
+import { addPlanEntry, autoFillWeek, clearWeek, removePlanEntry, setCooked } from "./actions";
 
 type Entry = {
   id: string;
   plan_date: string;
   meal_type: MealType;
   title: string | null;
+  cooked_at: string | null;
   recipes: { id: string; title: string; cook_minutes: number | null } | null;
 };
 
@@ -25,7 +26,7 @@ export default async function MenuPage({ searchParams }: PageProps<"/">) {
   const [entriesRes, recipesRes] = await Promise.all([
     supabase
       .from("meal_plan_entries")
-      .select("id, plan_date, meal_type, title, recipes(id, title, cook_minutes)")
+      .select("id, plan_date, meal_type, title, cooked_at, recipes(id, title, cook_minutes)")
       .gte("plan_date", days[0])
       .lte("plan_date", days[6])
       .order("created_at"),
@@ -86,16 +87,35 @@ export default async function MenuPage({ searchParams }: PageProps<"/">) {
                   <div key={slot}>
                     <div className="mb-1 text-xs font-medium tracking-wide text-stone-500 uppercase">{MEAL_LABELS[slot]}</div>
                     {items.map((e) => (
-                      <div key={e.id} className="flex items-center justify-between gap-2 py-0.5">
+                      <div key={e.id} className="flex items-center gap-2 py-0.5">
+                        <form action={setCooked}>
+                          <input type="hidden" name="id" value={e.id} />
+                          <input type="hidden" name="week" value={week} />
+                          <input type="hidden" name="cooked" value={String(!e.cooked_at)} />
+                          <button
+                            role="checkbox"
+                            aria-checked={Boolean(e.cooked_at)}
+                            aria-label={`Приготовано: ${e.recipes?.title ?? e.title}`}
+                            title={e.cooked_at ? "Приготовано — натисніть, щоб скасувати" : "Позначити як приготовано (спише продукти із запасів)"}
+                            className={`flex size-5 cursor-pointer items-center justify-center rounded border text-xs text-white ${
+                              e.cooked_at ? "border-brand-600 bg-brand-600" : "border-stone-300 bg-white hover:border-brand-500"
+                            }`}
+                          >
+                            {e.cooked_at ? "✓" : ""}
+                          </button>
+                        </form>
                         {e.recipes ? (
-                          <Link href={`/recipes/${e.recipes.id}`} className="text-sm hover:underline">
+                          <Link
+                            href={`/recipes/${e.recipes.id}`}
+                            className={`min-w-0 flex-1 text-sm hover:underline ${e.cooked_at ? "text-stone-400 line-through" : ""}`}
+                          >
                             {e.recipes.title}
                             {e.recipes.cook_minutes ? (
                               <span className="ml-1.5 text-xs text-stone-400">{e.recipes.cook_minutes} хв</span>
                             ) : null}
                           </Link>
                         ) : (
-                          <span className="text-sm">{e.title}</span>
+                          <span className="min-w-0 flex-1 text-sm">{e.title}</span>
                         )}
                         <form action={removePlanEntry}>
                           <input type="hidden" name="id" value={e.id} />

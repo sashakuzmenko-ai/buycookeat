@@ -52,6 +52,22 @@ try {
 } catch {
   blocked = true;
 }
-const pass = seenByA.length === 1 && seenByB.length === 0 && blocked;
+// запаси: додати, списати більше ніж є (не нижче нуля → рядок зникає), чужий не може
+const [{ pid }] = await as(a, `insert into products (household_id, name) values ('${hid}', 'Гречка') returning id as pid`);
+const adjust = (uid, delta) =>
+  as(uid, `select adjust_pantry('${hid}', '[{"product_id":"${pid}","delta":${delta}}]'::jsonb)`);
+const qty = async () => (await as(a, `select quantity from pantry_items`)).map((r) => Number(r.quantity));
+await adjust(a, 500);
+await adjust(a, 300);
+const afterAdd = await qty();
+await adjust(a, -200);
+const afterUse = await qty();
+await adjust(a, -9999);
+const afterEmpty = await qty();
+let strangerBlocked = false;
+try { await adjust(b, 100); } catch { strangerBlocked = true; }
+const pantryOk = afterAdd[0] === 800 && afterUse[0] === 600 && afterEmpty.length === 0 && strangerBlocked && (await qty()).length === 0;
+console.log(`Запаси: ${afterAdd[0]} → ${afterUse[0]} → порожньо: ${afterEmpty.length === 0}, чужий заблокований: ${strangerBlocked}`);
+const pass = seenByA.length === 1 && seenByB.length === 0 && blocked && pantryOk;
 console.log(`RLS: власник бачить ${seenByA.length}, сторонній бачить ${seenByB.length}, чужий запис ${blocked ? "заблоковано" : "ПРОЙШОВ"}`);
 process.exit(pass ? 0 : 1);

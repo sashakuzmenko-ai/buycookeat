@@ -3,7 +3,7 @@ import { getContext } from "@/lib/context";
 import { Notice } from "@/components/Notice";
 import { addDays, formatDate, parseWeekParam, weekDays } from "@/lib/dates";
 import { formatQty } from "@/lib/shopping";
-import { addShoppingItem, deleteRow, generateShopping, toggleShoppingItem } from "../actions";
+import { addShoppingItem, deleteRow, generateShopping, stockBought, toggleShoppingItem } from "../actions";
 
 type Item = {
   id: string;
@@ -13,6 +13,8 @@ type Item = {
   store_id: string | null;
   source: "plan" | "manual";
   checked: boolean;
+  stocked_at: string | null;
+  product_id: string | null;
   products: { name: string; category: string } | null;
 };
 type Store = { id: string; name: string; access: string; visit_frequency: string };
@@ -29,7 +31,7 @@ export default async function ShoppingPage({ searchParams }: PageProps<"/shoppin
   const [itemsRes, storesRes] = await Promise.all([
     supabase
       .from("shopping_list_items")
-      .select("id, title, quantity, unit, store_id, source, checked, products(name, category)")
+      .select("id, title, quantity, unit, store_id, source, checked, stocked_at, product_id, products(name, category)")
       .eq("week_start", week)
       .order("created_at"),
     supabase.from("stores").select("id, name, access, visit_frequency").order("sort_order"),
@@ -50,6 +52,7 @@ export default async function ShoppingPage({ searchParams }: PageProps<"/shoppin
     ...stores.map((store) => ({ store, items: sorted.filter((i) => i.store_id === store.id) })),
   ].filter((g) => g.items.length > 0);
   const left = items.filter((i) => !i.checked).length;
+  const toStock = items.filter((i) => i.checked && !i.stocked_at && i.product_id && i.quantity !== null).length;
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -74,8 +77,16 @@ export default async function ShoppingPage({ searchParams }: PageProps<"/shoppin
           <input type="hidden" name="week" value={week} />
           <button className="btn">{items.some((i) => i.source === "plan") ? "Перерахувати з меню" : "Зібрати з меню"}</button>
         </form>
+        {toStock > 0 && (
+          <form action={stockBought}>
+            <input type="hidden" name="week" value={week} />
+            <button className="btn-secondary border-brand-500 text-brand-700">Перенести куплене в запаси ({toStock})</button>
+          </form>
+        )}
         <Link className="btn-secondary" href={`/?week=${week}`}>← Меню</Link>
-        <span className="text-xs text-stone-500">Кількості — на всю сім&apos;ю; базові запаси (сіль, олія) не додаються.</span>
+        <span className="basis-full text-xs text-stone-500">
+          Кількості — на всю сім&apos;ю, мінус те, що вже є в запасах; базові запаси (сіль, олія) не додаються.
+        </span>
       </div>
 
       {groups.length === 0 && (
@@ -113,6 +124,7 @@ export default async function ShoppingPage({ searchParams }: PageProps<"/shoppin
                         {item.checked ? "✓" : ""}
                       </span>
                       <span className={`flex-1 truncate ${item.checked ? "text-stone-400 line-through" : ""}`}>{name(item)}</span>
+                      {item.stocked_at && <span className="chip">у запасах</span>}
                       {item.quantity !== null && item.unit && (
                         <span className={`whitespace-nowrap ${item.checked ? "text-stone-400" : "font-medium"}`}>
                           {formatQty(Number(item.quantity), item.unit)}

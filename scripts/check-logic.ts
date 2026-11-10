@@ -1,6 +1,6 @@
 // node scripts/check-logic.ts — перевірка розрахунку порцій, списку покупок і автозаповнення
 import assert from "node:assert/strict";
-import { autoFill, buildShoppingList, formatQty, householdPortions, roundCooking, roundQty } from "../src/lib/shopping.ts";
+import { autoFill, buildShoppingList, formatQty, householdPortions, ingredientUsage, roundCooking, roundQty } from "../src/lib/shopping.ts";
 import { addDays, weekDays, weekStart } from "../src/lib/dates.ts";
 import { SEED_FAMILY, SEED_PRODUCTS, SEED_RECIPES, SEED_STORES, SEED_EQUIPMENT } from "../src/lib/seed-data.ts";
 
@@ -50,6 +50,31 @@ assert.equal(byId.chicken.storeId, "silpo");
 assert.equal(byId.eggs.quantity, 2);
 assert.equal(byId.salt, undefined);
 assert.equal(byId.sour, undefined);
+
+// запаси зменшують список: картоплі треба 1912,5 г, вдома 1500 → купити 410; яєць вистачає
+const plan = [
+  { servings: null, baseServings: 4, ingredients: [
+    { productId: "potato", quantity: 1000, optional: false },
+    { productId: "chicken", quantity: 900, optional: false },
+  ] },
+  { servings: 4, baseServings: 4, ingredients: [
+    { productId: "potato", quantity: 1200, optional: false },
+    { productId: "eggs", quantity: 2, optional: false },
+    { productId: "sour", quantity: 200, optional: true },
+  ] },
+];
+const withStock = buildShoppingList(plan, 2.85, products, new Map([["potato", 1500], ["eggs", 10]]));
+const stocked = Object.fromEntries(withStock.map((l) => [l.productId, l.quantity]));
+assert.equal(stocked.potato, 410);
+assert.equal(stocked.eggs, undefined);
+assert.equal(stocked.chicken, 640);
+
+// списання на одну страву: точні кількості, без необов'язкових
+assert.deepEqual(ingredientUsage(plan[0], 2.85), [
+  { productId: "potato", quantity: 712.5 },
+  { productId: "chicken", quantity: 641.25 },
+]);
+assert.deepEqual(ingredientUsage(plan[1], 2.85).map((u) => u.productId), ["potato", "eggs"]);
 
 // дати
 assert.equal(weekStart("2026-11-10"), "2026-11-09"); // вівторок → понеділок

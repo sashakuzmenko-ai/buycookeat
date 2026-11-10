@@ -42,6 +42,7 @@ export function buildShoppingList(
   plan: PlanLine[],
   portions: number,
   products: Map<string, ProductInfo>,
+  stock: Map<string, number> = new Map(),
 ): ShoppingLine[] {
   const totals = new Map<string, number>();
   for (const line of plan) {
@@ -53,10 +54,22 @@ export function buildShoppingList(
       totals.set(ing.productId, (totals.get(ing.productId) ?? 0) + ing.quantity * scale);
     }
   }
-  return [...totals].map(([productId, q]) => {
-    const p = products.get(productId)!;
-    return { productId, quantity: roundQty(q, p.unit), unit: p.unit, storeId: p.storeId };
-  });
+  return [...totals]
+    // купуємо лише те, чого бракує понад запаси
+    .map(([productId, q]) => [productId, q - (stock.get(productId) ?? 0)] as const)
+    .filter(([, missing]) => missing > 0)
+    .map(([productId, missing]) => {
+      const p = products.get(productId)!;
+      return { productId, quantity: roundQty(missing, p.unit), unit: p.unit, storeId: p.storeId };
+    });
+}
+
+/** Скільки кожного продукту йде на одну страву з меню (без округлення, без необов'язкових). */
+export function ingredientUsage(line: PlanLine, portions: number): { productId: string; quantity: number }[] {
+  const scale = (line.servings ?? portions) / line.baseServings;
+  return line.ingredients
+    .filter((i) => !i.optional)
+    .map((i) => ({ productId: i.productId, quantity: Math.round(i.quantity * scale * 100) / 100 }));
 }
 
 export type Slot = { date: string; mealType: string };

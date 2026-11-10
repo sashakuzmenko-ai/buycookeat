@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getContext } from "@/lib/context";
 import { MEAL_TYPES, PRODUCT_CATEGORIES } from "@/lib/seed-data";
-import { autoFill, buildShoppingList, type PlanLine, type ProductInfo } from "@/lib/shopping";
+import { autoFill, buildShoppingList, ingredientUsage, type PlanLine, type ProductInfo } from "@/lib/shopping";
 import { parseWeekParam, weekDays } from "@/lib/dates";
 
 // Кожна дія спершу викликає getContext(): без входу — редірект на /login.
@@ -176,17 +176,26 @@ export async function generateShopping(formData: FormData) {
   const path = weekPath("/shopping", week);
   const days = weekDays(week);
 
-  const [entries, products, previous] = await Promise.all([
+  const [entries, products, previous, pantry] = await Promise.all([
     supabase
       .from("meal_plan_entries")
       .select("servings, recipes(base_servings, recipe_ingredients(product_id, quantity, optional))")
       .gte("plan_date", days[0])
       .lte("plan_date", days[6])
-      .not("recipe_id", "is", null),
+      .not("recipe_id", "is", null)
+      // приготоване вже списане із запасів — повторно не рахуємо
+      .is("cooked_at", null),
     supabase.from("products").select("id, unit, is_staple, preferred_store_id"),
-    supabase.from("shopping_list_items").select("product_id").eq("week_start", week).eq("source", "plan").eq("checked", true),
+    supabase
+      .from("shopping_list_items")
+      .select("product_id")
+      .eq("week_start", week)
+      .eq("source", "plan")
+      .eq("checked", true)
+      .is("stocked_at", null),
+    supabase.from("pantry_items").select("product_id, quantity"),
   ]);
-  const firstError = entries.error ?? products.error ?? previous.error;
+  const firstError = entries.error ?? products.error ?? previous.error ?? pantry.error;
   if (firstError) fail(path, firstError.message);
 
   type Row = {
@@ -207,11 +216,19 @@ export async function generateShopping(formData: FormData) {
   const productMap = new Map<string, ProductInfo>(
     products.data!.map((p) => [p.id as string, { unit: p.unit, isStaple: p.is_staple, storeId: p.preferred_store_id }]),
   );
-  const lines = buildShoppingList(plan, portions, productMap);
-  // вже куплене лишається відміченим після перерахунку
+  const stock = new Map(pantry.data!.map((p) => [p.product_id as string, Number(p.quantity)]));
+  const lines = buildShoppingList(plan, portions, productMap, stock);
+  // куплене, але ще не перенесене в запаси, лишається відміченим після перерахунку
   const bought = new Set(previous.data!.map((r) => r.product_id as string));
 
-  const del = await supabase.from("shopping_list_items").delete().eq("household_id", householdId).eq("week_start", week).eq("source", "plan");
+  // позиції, вже перенесені в запаси, лишаємо як історію покупок тижня
+  const del = await supabase
+    .from("shopping_list_items")
+    .delete()
+    .eq("household_id", householdId)
+    .eq("week_start", week)
+    .eq("source", "plan")
+    .is("stocked_at", null);
   if (del.error) fail(path, del.error.message);
   if (lines.length) {
     const { error } = await supabase.from("shopping_list_items").insert(
@@ -229,7 +246,122 @@ export async function generateShopping(formData: FormData) {
     if (error) fail(path, error.message);
   }
   revalidatePath("/shopping");
-  if (!lines.length) fail(path, "У меню на цей тиждень немає страв з рецептами");
+  if (!plan.length) fail(path, "У меню на цей тиждень немає неприготованих страв з рецептами");
+  if (!lines.length) redirect(`${path}&info=${encodeURIComponent("Усе потрібне на цей тиждень уже є в запасах")}`);
+}
+
+/** Куплені (відмічені) позиції з продуктом переносить у запаси — кожну лише один раз. */
+export async function stockBought(formData: FormData) {
+  const { supabase, householdId } = await getContext();
+  const week = parseWeekParam(str(formData, "week"));
+  const path = weekPath("/shopping", week);
+  // спершу позначаємо, потім додаємо: повторний клік не подвоїть запаси
+  const { data, error } = await supabase
+    .from("shopping_list_items")
+    .update({ stocked_at: new Date().toISOString() })
+    .eq("household_id", householdId)
+    .eq("week_start", week)
+    .eq("checked", true)
+    .is("stocked_at", null)
+    .not("product_id", "is", null)
+    .not("quantity", "is", null)
+    .select("id, product_id, quantity");
+  if (error) fail(path, error.message);
+  if (data!.length) {
+    const rpc = await supabase.rpc("adjust_pantry", {
+      p_household_id: householdId,
+      p_items: data!.map((r) => ({ product_id: r.product_id, delta: Number(r.quantity) })),
+    });
+    if (rpc.error) {
+      await supabase.from("shopping_list_items").update({ stocked_at: null }).in("id", data!.map((r) => r.id));
+      fail(path, rpc.error.message);
+    }
+  }
+  revalidatePath("/shopping");
+  revalidatePath("/pantry");
+}
+
+// ---------- Запаси ----------
+
+export async function setPantryItem(formData: FormData) {
+  const { supabase, householdId } = await getContext();
+  const productId = uuidOrNull(str(formData, "product_id"));
+  const quantity = num(formData, "quantity");
+  if (!productId) fail("/pantry", "Оберіть продукт");
+  if (!(quantity >= 0)) fail("/pantry", "Вкажіть кількість");
+  const result =
+    quantity === 0
+      ? await supabase.from("pantry_items").delete().eq("household_id", householdId).eq("product_id", productId)
+      : await supabase
+          .from("pantry_items")
+          .upsert(
+            { household_id: householdId, product_id: productId, quantity, updated_at: new Date().toISOString() },
+            { onConflict: "household_id,product_id" },
+          );
+  if (result.error) fail("/pantry", result.error.message);
+  revalidatePath("/pantry");
+}
+
+/** «Приготовано»: списує інгредієнти страви із запасів; зняття позначки повертає їх. */
+export async function setCooked(formData: FormData) {
+  const { supabase, householdId, portions } = await getContext();
+  const id = uuidOrNull(str(formData, "id"));
+  const cooked = str(formData, "cooked") === "true";
+  const path = weekPath("/", parseWeekParam(str(formData, "week")));
+  if (!id) return;
+
+  // перемикаємо лише з протилежного стану: подвійний клік не спише двічі
+  let flip = supabase
+    .from("meal_plan_entries")
+    .update({ cooked_at: cooked ? new Date().toISOString() : null })
+    .eq("id", id);
+  flip = cooked ? flip.is("cooked_at", null) : flip.not("cooked_at", "is", null);
+  const { data, error } = await flip.select(
+    "servings, recipes(base_servings, recipe_ingredients(product_id, quantity, optional))",
+  );
+  if (error) fail(path, error.message);
+
+  type Row = {
+    servings: number | null;
+    recipes: { base_servings: number; recipe_ingredients: { product_id: string; quantity: number; optional: boolean }[] } | null;
+  };
+  const entry = (data as unknown as Row[])[0];
+  if (entry?.recipes) {
+    const usage = ingredientUsage(
+      {
+        servings: entry.servings === null ? null : Number(entry.servings),
+        baseServings: Number(entry.recipes.base_servings),
+        ingredients: entry.recipes.recipe_ingredients.map((i) => ({
+          productId: i.product_id,
+          quantity: Number(i.quantity),
+          optional: i.optional,
+        })),
+      },
+      portions,
+    );
+    if (cooked) {
+      // списуємо лише те, що ведеться в запасах: adjust_pantry не створює рядків для від'ємних змін
+      const rpc = await supabase.rpc("adjust_pantry", {
+        p_household_id: householdId,
+        p_items: usage.map((u) => ({ product_id: u.productId, delta: -u.quantity })),
+      });
+      if (rpc.error) fail(path, rpc.error.message);
+    } else {
+      // повертаємо тільки продукти, які є в запасах, щоб не «створити» сіль чи олію
+      const { data: tracked } = await supabase.from("pantry_items").select("product_id");
+      const known = new Set((tracked ?? []).map((t) => t.product_id as string));
+      const back = usage.filter((u) => known.has(u.productId));
+      if (back.length) {
+        const rpc = await supabase.rpc("adjust_pantry", {
+          p_household_id: householdId,
+          p_items: back.map((u) => ({ product_id: u.productId, delta: u.quantity })),
+        });
+        if (rpc.error) fail(path, rpc.error.message);
+      }
+    }
+  }
+  revalidatePath("/");
+  revalidatePath("/pantry");
 }
 
 export async function toggleShoppingItem(formData: FormData) {
@@ -339,6 +471,7 @@ const DELETABLE = {
   stores: "/settings",
   equipment: "/settings",
   shopping_list_items: "/shopping",
+  pantry_items: "/pantry",
 } as const;
 
 export async function deleteRow(formData: FormData) {
