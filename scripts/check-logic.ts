@@ -24,10 +24,22 @@ import {
   findStoreSavingsRecommendation,
   normalizeReceiptItemPrice,
   pluralizeChecks,
-  pluralizePositions,
+  pluralizePositions as pluralizePricePositions,
 } from "../src/lib/prices.ts";
 import { addDays, weekDays, weekStart } from "../src/lib/dates.ts";
 import { SEED_FAMILY, SEED_PRODUCTS, SEED_RECIPES, SEED_STORES, SEED_EQUIPMENT } from "../src/lib/seed-data.ts";
+import {
+  pluralizePositions,
+  calculateScalePercent,
+  isLowStock,
+  daysUntilExpiry,
+  isExpiringSoon,
+  formatExpiryNote,
+  determineItemState,
+  calculateWeekSufficiency,
+  formatMovements,
+  type MovementInput,
+} from "../src/lib/pantry.ts";
 import { MAIN_NAV_ITEMS, MORE_NAV_ITEMS, isRouteActive, isMoreActive } from "../src/components/shell/nav-items.ts";
 
 // навігація: вісім розділів у бічній панелі та їх порядок
@@ -436,8 +448,151 @@ assert.equal(pluralizeChecks(2), "2 чеки");
 assert.equal(pluralizeChecks(5), "5 чеків");
 assert.equal(pluralizeChecks(14), "14 чеків");
 assert.equal(pluralizeChecks(21), "21 чек");
+assert.equal(pluralizePricePositions(1), "1 позиція");
+assert.equal(pluralizePricePositions(3), "3 позиції");
+assert.equal(pluralizePricePositions(10), "10 позицій");
+
+// ---------- Склад (pantry) ----------
+// відмінювання
+assert.equal(pluralizePositions(0), "0 позицій");
 assert.equal(pluralizePositions(1), "1 позиція");
-assert.equal(pluralizePositions(3), "3 позиції");
-assert.equal(pluralizePositions(10), "10 позицій");
+assert.equal(pluralizePositions(2), "2 позиції");
+assert.equal(pluralizePositions(4), "4 позиції");
+assert.equal(pluralizePositions(5), "5 позицій");
+assert.equal(pluralizePositions(11), "11 позицій");
+assert.equal(pluralizePositions(21), "21 позиція");
+assert.equal(pluralizePositions(22), "22 позиції");
+assert.equal(pluralizePositions(31), "31 позиція");
+assert.equal(pluralizePositions(64), "64 позиції");
+
+// шкала рівня
+assert.equal(calculateScalePercent(600, "г"), 60);
+assert.equal(calculateScalePercent(140, "мл"), 14);
+assert.equal(calculateScalePercent(2, "шт"), 20); // 2 / 10 = 20%
+assert.equal(calculateScalePercent(0, "г"), 0);
+assert.equal(calculateScalePercent(1500, "г"), 100);
+assert.equal(calculateScalePercent(600, "г", 2000), 30); // 600 / 2000 = 30%
+
+// поріг «мало»
+assert.equal(isLowStock(20), true);
+assert.equal(isLowStock(10), true);
+assert.equal(isLowStock(21), false);
+assert.equal(isLowStock(60), false);
+
+// терміни придатності (базова дата 2026-11-12)
+const t0 = "2026-11-12";
+assert.equal(daysUntilExpiry("2026-11-13", t0), 1);
+assert.equal(daysUntilExpiry("2026-11-12", t0), 0);
+assert.equal(daysUntilExpiry("2026-11-11", t0), -1);
+assert.equal(daysUntilExpiry("2026-11-15", t0), 3);
+assert.equal(daysUntilExpiry("2026-11-16", t0), 4);
+
+assert.equal(isExpiringSoon("2026-11-15", t0), true);
+assert.equal(isExpiringSoon("2026-11-16", t0), false);
+assert.equal(isExpiringSoon(null, t0), false);
+
+assert.equal(formatExpiryNote("2026-11-11", t0), "Термін минув");
+assert.equal(formatExpiryNote("2026-11-12", t0), "Спливає сьогодні");
+assert.equal(formatExpiryNote("2026-11-13", t0), "Спливає завтра");
+assert.equal(formatExpiryNote("2026-11-15", t0), "Термін до 15 листопада");
+
+// стан позиції для LevelBar
+assert.equal(determineItemState(true, true), "expiring");
+assert.equal(determineItemState(true, false), "expiring");
+assert.equal(determineItemState(false, true), "low");
+assert.equal(determineItemState(false, false), "normal");
+
+// на скільки вистачить
+const testProducts = new Map([
+  ["chicken", { unit: "г", isStaple: false, storeId: null, name: "Курка" }],
+  ["eggs", { unit: "шт", isStaple: false, storeId: null, name: "Яйця" }],
+  ["salt", { unit: "г", isStaple: true, storeId: null, name: "Сіль" }],
+]);
+const testUpcoming = [
+  {
+    servings: null,
+    baseServings: 2,
+    ingredients: [
+      { productId: "chicken", quantity: 500, optional: false },
+      { productId: "eggs", quantity: 2, optional: false },
+      { productId: "salt", quantity: 10, optional: false },
+    ],
+  },
+];
+// порції = 2. Потреба: chicken 500г, eggs 2шт. Вдома: chicken 200г, eggs 10шт.
+const shortRes = calculateWeekSufficiency(testUpcoming, new Map([["chicken", 200], ["eggs", 10]]), testProducts, 2);
+assert.equal(shortRes.willRunOut, true);
+assert.deepEqual(shortRes.productNames, ["курка"]);
+assert.match(shortRes.message ?? "", /курка/);
+
+const okRes = calculateWeekSufficiency(testUpcoming, new Map([["chicken", 800], ["eggs", 10]]), testProducts, 2);
+assert.equal(okRes.willRunOut, false);
+assert.equal(okRes.message, null);
+
+// форматування руху складу
+const sampleMovements: MovementInput[] = [
+  {
+    id: "m1",
+    product_id: "chicken",
+    delta: 500,
+    source: "scan",
+    scan_id: "scan-1",
+    meal_plan_entry_id: null,
+    created_at: "2026-11-12T10:42:00Z",
+    products: { name: "Курка", unit: "г" },
+    incoming_scans: { store_name: "Сільпо", input_type: "receipt", channel: "telegram" },
+  },
+  {
+    id: "m2",
+    product_id: "eggs",
+    delta: 10,
+    source: "scan",
+    scan_id: "scan-1",
+    meal_plan_entry_id: null,
+    created_at: "2026-11-12T10:42:00Z",
+    products: { name: "Яйця", unit: "шт" },
+    incoming_scans: { store_name: "Сільпо", input_type: "receipt", channel: "telegram" },
+  },
+  {
+    id: "m3",
+    product_id: "chicken",
+    delta: -300,
+    source: "cooked",
+    scan_id: null,
+    meal_plan_entry_id: "plan-1",
+    created_at: "2026-11-12T08:40:00Z",
+    products: { name: "Курка", unit: "г" },
+    meal_plan_entries: { recipes: { title: "Курячий суп" } },
+  },
+  {
+    id: "m4",
+    product_id: "eggs",
+    delta: 5,
+    source: "inventory",
+    scan_id: null,
+    meal_plan_entry_id: null,
+    created_at: "2026-11-12T07:00:00Z",
+    products: { name: "Яйця", unit: "шт" },
+  },
+  {
+    id: "m5",
+    product_id: "chicken",
+    delta: 100,
+    source: "manual",
+    scan_id: null,
+    meal_plan_entry_id: null,
+    created_at: "2026-11-12T06:00:00Z",
+    products: { name: "Курка", unit: "г" },
+  },
+];
+const formattedMoves = formatMovements(sampleMovements);
+assert.equal(formattedMoves.length, 4); // scan-1 (2 items) -> 1 move; plan-1 -> 1 move; inventory -> 1 move; manual -> 1 move
+assert.equal(formattedMoves[0].title, "Чек · Сільпо");
+assert.equal(formattedMoves[0].sign, "+");
+assert.equal(formattedMoves[1].title, "Курячий суп");
+assert.equal(formattedMoves[1].sign, "−");
+assert.equal(formattedMoves[2].title, "Інвентаризація");
+assert.equal(formattedMoves[2].sign, "=");
+assert.equal(formattedMoves[3].sign, "+");
 
 console.log(`ok: логіка і стартові дані (${SEED_PRODUCTS.length} продуктів, ${SEED_RECIPES.length} рецептів)`);
