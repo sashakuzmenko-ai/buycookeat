@@ -88,7 +88,7 @@ import {
   formatAmount,
   formatScanDay,
   formatScanWhen,
-  formatUah,
+  formatUah as formatScanUah,
   parseScanItems,
   queueTitle,
   shoppingEffectLabel,
@@ -934,7 +934,7 @@ assert.equal(formatScanDay("2026-11-12T08:42:00Z"), "12.11.2026");
 assert.equal(queueTitle("receipt", "Сільпо", "telegram"), "Чек · Сільпо");
 assert.equal(queueTitle("voice", null, "web"), "Голос · Веб");
 assert.equal(statusLabel("pending"), "Перевірити");
-assert.equal(formatUah(1284.5), "1 284,50 ₴");
+assert.equal(formatScanUah(1284.5), "1 284,50 ₴");
 assert.equal(formatAmount(93.8), "93,80");
 assert.equal(stockEffectLabel("add", 18), "+18 позицій");
 assert.equal(stockEffectLabel("set", 2), "оновити 2 позиції");
