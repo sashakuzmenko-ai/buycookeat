@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Cook & Eat — скан через Telegram-бота</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1E6B45}a:hover{color:#14201A}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; font-family: 'Onest', system-ui, sans-serif; color: #14201A; background: #E6EBE6">
+
+  <div style="box-sizing: border-box; padding: 52px 16px 10px; background: #FFFFFF; border-bottom: 1px solid #DDE3DC; display: flex; align-items: center; gap: 12px">
+    <svg aria-hidden="true" width="40" height="40" viewBox="0 0 48 48"><rect width="48" height="48" rx="24" fill="#1E6B45"></rect><path d="M33.9 14.1A14 14 0 1 0 33.9 33.9" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"></path><circle cx="35" cy="24" r="4.5" fill="#C8F169"></circle></svg>
+    <div style="flex-grow: 1">
+      <div style="font-size: 16px; font-weight: 700">Cook & Eat</div>
+      <div style="font-size: 12px; color: #4A5750">бот · сімейний чат «Дім»</div>
+    </div>
+  </div>
+
+  <div style="flex-grow: 1; box-sizing: border-box; padding: 12px 12px 0; display: flex; flex-direction: column; gap: 8px; overflow: hidden">
+
+    <div style="align-self: flex-end; max-width: 250px; box-sizing: border-box; padding: 10px 12px; border-radius: 18px 18px 4px 18px; background: #CFEBD8; display: flex; align-items: center; gap: 10px">
+      <div aria-hidden="true" style="width: 34px; height: 34px; border-radius: 999px; background: #1E6B45; display: flex; align-items: center; justify-content: center">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M7 4l13 8-13 8z"></path></svg>
+      </div>
+      <div role="img" aria-label="Голосове повідомлення, 9 секунд" style="display: flex; align-items: center; gap: 3px; height: 28px">
+        <sc-for list="{{wave}}" as="b" hint-placeholder-count="20">
+          <span style="width: 3px; border-radius: 2px; background: #1E6B45; height: {{b.h}}"></span>
+        </sc-for>
+      </div>
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #14522F">0:09</span>
+    </div>
+
+    <div style="align-self: flex-start; max-width: 300px; box-sizing: border-box; padding: 12px; border-radius: 18px 18px 18px 4px; background: #FFFFFF; display: flex; flex-direction: column; gap: 8px">
+      <div style="font-size: 14px">Почув <span style="font-weight: 700">3 позиції</span>. Куди записати?</div>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.6">Молоко 2,5% · 2 л<br>Яйця · 10 шт<br>Хліб · 1 шт</div>
+      <div style="display: flex; gap: 6px">
+        <button type="button" style="flex: 1 1 0; height: 44px; border: 0; border-radius: 12px; background: #14201A; color: #FFFFFF; font: 600 13px 'Onest', sans-serif">У покупки</button>
+        <button type="button" style="flex: 1 1 0; height: 44px; border: 1px solid #C5CEC6; border-radius: 12px; background: #FFFFFF; color: #14201A; font: 600 13px 'Onest', sans-serif">Уже купили</button>
+      </div>
+    </div>
+
+    <div style="align-self: flex-end; width: 190px; box-sizing: border-box; padding: 6px; border-radius: 18px 18px 4px 18px; background: #CFEBD8">
+      <div style="height: 84px; border-radius: 13px; border: 1.5px dashed #1E6B45; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #14522F">фото чека</div>
+    </div>
+
+    <div style="align-self: flex-start; max-width: 316px; box-sizing: border-box; padding: 12px; border-radius: 18px 18px 18px 4px; background: #FFFFFF; display: flex; flex-direction: column; gap: 8px">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px">
+        <span style="font-size: 15px; font-weight: 700">Сільпо · 12.11</span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 600">1 284,50 ₴</span>
+      </div>
+      <div style="font-size: 14px; line-height: 1.45">18 позицій розпізнано. Дві під питанням:</div>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.6; padding: 8px 10px; border-radius: 10px; background: #E4F5B4">ФIЛЕ ХЕК ЗАМ → Філе хека, 600 г?<br>ТОМ КОНС 400 → Томати конс., 1 шт?</div>
+      <div style="display: flex; gap: 6px">
+        <button type="button" style="flex: 1 1 0; height: 44px; border: 0; border-radius: 12px; background: #14201A; color: #C8F169; font: 600 13px 'Onest', sans-serif">Усе так, записати</button>
+        <button type="button" style="height: 44px; padding: 0 14px; border: 1px solid #C5CEC6; border-radius: 12px; background: #FFFFFF; color: #14201A; font: 600 13px 'Onest', sans-serif">Виправити</button>
+      </div>
+      <div style="font-size: 12px; color: #4A5750">Після запису: +18 на склад, 1 284,50 ₴ у витрати листопада.</div>
+    </div>
+  </div>
+
+  <div style="box-sizing: border-box; padding: 8px 12px 0; display: flex; gap: 6px">
+    <button type="button" style="height: 44px; padding: 0 12px; border: 1px solid #C5CEC6; border-radius: 999px; background: #FFFFFF; color: #14201A; font: 600 13px 'Onest', sans-serif">Що на вечерю?</button>
+    <button type="button" style="height: 44px; padding: 0 12px; border: 1px solid #C5CEC6; border-radius: 999px; background: #FFFFFF; color: #14201A; font: 600 13px 'Onest', sans-serif">Список покупок</button>
+    <button type="button" style="height: 44px; padding: 0 12px; border: 1px solid #C5CEC6; border-radius: 999px; background: #FFFFFF; color: #14201A; font: 600 13px 'Onest', sans-serif">Залишки</button>
+  </div>
+
+  <div style="box-sizing: border-box; padding: 8px 12px 26px; display: flex; align-items: center; gap: 8px">
+    <button type="button" aria-label="Додати фото, відео або скріншот" style="width: 44px; height: 44px; border: 0; border-radius: 999px; background: #FFFFFF; display: flex; align-items: center; justify-content: center">
+      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#14201A" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+    </button>
+    <label for="tg-msg" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%)">Повідомлення боту</label>
+    <input id="tg-msg" type="text" placeholder="Напишіть: «купив сир і сметану»" style="flex: 1 1 0; min-width: 0; height: 44px; box-sizing: border-box; padding: 0 16px; border: 0; border-radius: 999px; background: #FFFFFF; font: 400 14px 'Onest', sans-serif; color: #14201A">
+    <button type="button" aria-label="Записати голосове" style="width: 44px; height: 44px; border: 0; border-radius: 999px; background: #1E6B45; display: flex; align-items: center; justify-content: center">
+      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V7a3 3 0 0 0-3-3zM6 12a6 6 0 0 0 12 0M12 18v3"></path></svg>
+    </button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const wave = [8, 14, 22, 12, 18, 26, 16, 10, 20, 24, 14, 8, 18, 22, 12, 16, 24, 10, 14, 8].map((h) => ({ h: h + "px" }));
+    return { wave };
+  }
+}
+</script>
+</body>
+</html>

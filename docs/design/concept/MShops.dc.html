@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Cook & Eat — магазини і покупки, телефон</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#8A5600}a:hover{color:#14201A}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; font-family: 'Onest', system-ui, sans-serif; color: #14201A; background: #F3F5F1">
+
+  <div style="flex-grow: 1; box-sizing: border-box; padding: 56px 20px 0; display: flex; flex-direction: column; gap: 12px; overflow: hidden">
+    <div style="display: flex; justify-content: space-between; align-items: flex-end">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <div style="font-size: 14px; font-weight: 600; color: #8A5600">Магазини · до неділі</div>
+        <h1 style="margin: 0; font-family: 'Unbounded', 'Onest', sans-serif; font-weight: 700; font-size: 24px">14 позицій</h1>
+      </div>
+      <div style="font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 17px; padding-bottom: 3px">≈ 1 260 ₴</div>
+    </div>
+
+    <div style="display: flex; gap: 8px">
+      <button type="button" aria-pressed="true" style="flex: 1 1 0; height: 48px; border: 0; border-radius: 14px; background: #14201A; color: #FFFFFF; font: 600 14px 'Onest', sans-serif">Сільпо · 9 · ≈ 840 ₴</button>
+      <button type="button" aria-pressed="false" style="flex: 1 1 0; height: 48px; border: 1px solid #C5CEC6; border-radius: 14px; background: #FFFFFF; color: #14201A; font: 600 14px 'Onest', sans-serif">Ринок · 5 · ≈ 420 ₴</button>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 14px; background: #FBEFD2; font-size: 13px; line-height: 1.4; color: #6B4300">
+      <span style="flex-grow: 1"><span style="font-weight: 700">В АТБ на 24 ₴ дешевше</span> масло та яйця — за вашими чеками.</span>
+      <button type="button" style="height: 44px; padding: 0 12px; border: 0; border-radius: 12px; background: #8A5600; color: #FFFFFF; font: 600 13px 'Onest', sans-serif">Перенести</button>
+    </div>
+
+    <sc-for list="{{groups}}" as="g" hint-placeholder-count="2">
+      <section style="border-radius: 18px; background: #FFFFFF; border: 1px solid #DDE3DC; padding: 6px 14px">
+        <div style="display: flex; justify-content: space-between; padding: 8px 0 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #4A5750"><span>{{g.name}}</span><span>{{g.where}}</span></div>
+        <sc-for list="{{g.items}}" as="i" hint-placeholder-count="4">
+          <label style="display: flex; align-items: center; gap: 12px; min-height: 44px; border-top: 1px solid #EEF1ED; font-size: 15px">
+            <input type="checkbox" checked="{{i.done}}" style="width: 22px; height: 22px; margin: 0; accent-color: #8A5600">
+            <span style="flex-grow: 1; color: {{i.fg}}; text-decoration: {{i.td}}">{{i.name}}</span>
+            <span style="font-size: 13px; color: #4A5750">{{i.qty}}</span>
+            <span style="width: 52px; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600">{{i.price}}</span>
+          </label>
+        </sc-for>
+      </section>
+    </sc-for>
+  </div>
+
+  <nav aria-label="Нижня навігація" style="height: 84px; box-sizing: border-box; padding: 8px 12px 20px; background: #FFFFFF; border-top: 1px solid #DDE3DC; display: flex; justify-content: space-between; align-items: center">
+    <a href="MHome.dc.html" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; font-weight: 500; color: #4A5750; text-decoration: none">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4A5750" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9H4z"></path></svg>Огляд
+    </a>
+    <a href="MMenu.dc.html" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; font-weight: 500; color: #4A5750; text-decoration: none">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4A5750" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6h14v14H5zM5 10h14M9 3v4M15 3v4"></path></svg>Меню
+    </a>
+    <a href="MScan.dc.html" aria-label="Скан чека після покупки" style="width: 56px; height: 56px; border-radius: 18px; background: #14201A; display: flex; align-items: center; justify-content: center">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#C8F169" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5h3M17 5h3v3M20 16v3h-3M7 19H4v-3M8 12h8"></path></svg>
+    </a>
+    <a href="MPantry.dc.html" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; font-weight: 500; color: #4A5750; text-decoration: none">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4A5750" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v14H4zM4 12h16M9 8.5h6M9 15.5h6"></path></svg>Склад
+    </a>
+    <a href="MFamily.dc.html" aria-current="page" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; font-weight: 700; color: #14201A; text-decoration: none">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#14201A" stroke-width="2.6" stroke-linecap="round"><path d="M5 12h.01M12 12h.01M19 12h.01"></path></svg>Ще
+    </a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const mk = (r) => ({ name: r[0], qty: r[1], price: r[2], done: !!r[3], fg: r[3] ? "#4A5750" : "#14201A", td: r[3] ? "line-through" : "none" });
+    const groups = [
+      { name: "Молочне та яйця", where: "ряд 2", items: [
+        ["Молоко 2,5%", "2 л", "94 ₴"],
+        ["Яйця", "10 шт", "72 ₴"],
+        ["Масло вершкове", "200 г", "98 ₴"],
+        ["Сир кисломолочний", "400 г", "120 ₴", true],
+        ["Моцарела", "250 г", "96 ₴"]
+      ].map(mk) },
+      { name: "Риба і бакалія", where: "ряди 5–7", items: [
+        ["Філе хека", "600 г", "168 ₴"],
+        ["Олія соняшникова", "1 л", "82 ₴"],
+        ["Борошно пшеничне", "1 кг", "38 ₴", true],
+        ["Томати консервовані", "400 г", "72 ₴"]
+      ].map(mk) }
+    ];
+    return { groups };
+  }
+}
+</script>
+</body>
+</html>

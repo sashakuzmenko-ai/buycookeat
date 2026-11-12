@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Cook & Eat — меню, телефон</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1E6B45}a:hover{color:#14201A}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; font-family: 'Onest', system-ui, sans-serif; color: #14201A; background: #F3F5F1">
+
+  <div style="flex-grow: 1; box-sizing: border-box; padding: 56px 20px 0; display: flex; flex-direction: column; gap: 12px; overflow: hidden">
+    <div style="display: flex; justify-content: space-between; align-items: flex-end">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <div style="font-size: 14px; font-weight: 600; color: #1E6B45">Меню · 9–15 листопада</div>
+        <h1 style="margin: 0; font-family: 'Unbounded', 'Onest', sans-serif; font-weight: 700; font-size: 24px">Четвер</h1>
+      </div>
+      <button type="button" style="height: 44px; padding: 0 14px; border: 1px solid #C5CEC6; border-radius: 14px; background: #FFFFFF; color: #14201A; font: 600 14px 'Onest', sans-serif">Тиждень</button>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; gap: 4px">
+      <sc-for list="{{days}}" as="d" hint-placeholder-count="7">
+        <button type="button" aria-pressed="{{d.on}}" aria-label="{{d.aria}}" style="flex: 1 1 0; min-width: 44px; height: 62px; border-radius: 14px; border: 1px solid {{d.bd}}; background: {{d.bg}}; color: {{d.fg}}; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-family: 'Onest', sans-serif">
+          <span style="font-size: 11px; font-weight: 600">{{d.name}}</span>
+          <span style="font-family: 'Unbounded', 'Onest', sans-serif; font-weight: 500; font-size: 15px">{{d.date}}</span>
+          <span aria-hidden="true" style="font-size: 10px; line-height: 1">{{d.mark}}</span>
+        </button>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px; background: #E3F1E8">
+      <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 6px">
+        <div style="font-size: 13px; font-weight: 600; color: #14522F">Склад покриває 78% тижня</div>
+        <div style="height: 8px; border-radius: 999px; background: #FFFFFF"><div style="width: 78%; height: 8px; border-radius: 999px; background: #1E6B45"></div></div>
+      </div>
+      <a href="MShops.dc.html" style="display: flex; align-items: center; height: 44px; padding: 0 12px; flex-shrink: 0; white-space: nowrap; border-radius: 12px; background: #14201A; color: #FFFFFF; font-weight: 600; font-size: 13px; text-decoration: none">Докупити 14</a>
+    </div>
+
+    <sc-for list="{{meals}}" as="m" hint-placeholder-count="3">
+      <section style="box-sizing: border-box; padding: 14px 16px; border-radius: 20px; border: 1px solid #DDE3DC; display: flex; flex-direction: column; gap: 8px; background: {{m.bg}}">
+        <div style="display: flex; justify-content: space-between; align-items: center">
+          <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #4A5750">{{m.slot}}</span>
+          <span style="padding: 4px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; background: {{m.cbg}}; color: {{m.cfg}}">{{m.chip}}</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px">
+          <div style="flex-grow: 1; min-width: 0">
+            <div style="font-size: 17px; font-weight: 700; color: {{m.fg}}">{{m.dish}}</div>
+            <div style="font-size: 13px; color: #4A5750">{{m.meta}}</div>
+          </div>
+          <sc-if value="{{m.cook}}" hint-placeholder-val="{{false}}">
+            <a href="MRecipe.dc.html" style="display: flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 12px; background: #1E6B45; color: #FFFFFF; font-weight: 600; font-size: 14px; text-decoration: none">Готувати</a>
+          </sc-if>
+          <sc-if value="{{m.buy}}" hint-placeholder-val="{{false}}">
+            <a href="#" style="display: flex; align-items: center; height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid #C5CEC6; background: #FFFFFF; color: #14201A; font-weight: 600; font-size: 14px; text-decoration: none">Замінити</a>
+          </sc-if>
+        </div>
+      </section>
+    </sc-for>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; min-height: 44px; padding: 0 4px; font-size: 14px">
+      <span style="color: #4A5750">Завтра · каша, борщ, риба з пюре</span>
+      <span style="font-weight: 600; color: #6B4300">бракує 3</span>
+    </div>
+  </div>
+
+  <nav aria-label="Нижня навігація" style="height: 84px; box-sizing: border-box; padding: 8px 12px 20px; background: #FFFFFF; border-top: 1px solid #DDE3DC; display: flex; justify-content: space-between; align-items: center">
+    <a href="MHome.dc.html" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; font-weight: 500; color: #4A5750; text-decoration: none">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4A5750" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9H4z"></path></svg>Огляд
+    </a>
+    <a href="MMenu.dc.html" aria-current="page" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; font-weight: 700; color: #14201A; text-decoration: none">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1E6B45" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6h14v14H5zM5 10h14M9 3v4M15 3v4"></path></svg>Меню
+    </a>
+    <a href="MScan.dc.html" aria-label="Скан" style="width: 56px; height: 56px; border-radius: 18px; background: #14201A; display: flex; align-items: center; justify-content: center">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#C8F169" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5h3M17 5h3v3M20 16v3h-3M7 19H4v-3M8 12h8"></path></svg>
+    </a>
+    <a href="MPantry.dc.html" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; font-weight: 500; color: #4A5750; text-decoration: none">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4A5750" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v14H4zM4 12h16M9 8.5h6M9 15.5h6"></path></svg>Склад
+    </a>
+    <a href="MFamily.dc.html" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; font-weight: 500; color: #4A5750; text-decoration: none">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4A5750" stroke-width="2.6" stroke-linecap="round"><path d="M5 12h.01M12 12h.01M19 12h.01"></path></svg>Ще
+    </a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    // позначка під датою: ✓ усе приготовано, • є план, ○ є порожній слот
+    const days = [["Пн", 9, "✓"], ["Вт", 10, "✓"], ["Ср", 11, "✓"], ["Чт", 12, "•"], ["Пт", 13, "•"], ["Сб", 14, "•"], ["Нд", 15, "○"]].map((d) => {
+      const on = d[1] === 12;
+      return {
+        name: d[0], date: String(d[1]), mark: d[2], on: on ? "true" : "false", aria: d[0] + ", " + d[1] + " листопада",
+        bg: on ? "#14201A" : "#FFFFFF", fg: on ? "#C8F169" : "#14201A", bd: on ? "#14201A" : "#DDE3DC"
+      };
+    });
+    const meals = [
+      { slot: "Сніданок", dish: "Сирники зі сметаною", meta: "25 хв · продукти списано о 08:40", chip: "Приготовано", cbg: "#E3F1E8", cfg: "#14522F", bg: "#EEF1ED", fg: "#4A5750", cook: false, buy: false },
+      { slot: "Обід", dish: "Борщ із пампушками", meta: "60 хв · на два дні", chip: "Усе є", cbg: "#DDEFEE", cfg: "#124E51", bg: "#FFFFFF", fg: "#14201A", cook: true, buy: false },
+      { slot: "Вечеря", dish: "Запечена курка з овочами", meta: "50 хв · немає кабачка і паприки", chip: "Бракує 2", cbg: "#FBEFD2", cfg: "#6B4300", bg: "#FFFFFF", fg: "#14201A", cook: false, buy: true }
+    ];
+    return { days, meals };
+  }
+}
+</script>
+</body>
+</html>
