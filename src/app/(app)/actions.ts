@@ -14,6 +14,7 @@ import {
   addShoppingItem as shoppingAddShoppingItem,
   createStore,
 } from "./shopping/actions";
+import { parseRestrictions } from "@/lib/family";
 
 // Кожна дія спершу викликає getContext(): без входу — редірект на /login.
 // Доступ до чужих рядків додатково закриває RLS у базі.
@@ -320,11 +321,13 @@ export async function addFamilyMember(formData: FormData) {
   const factor = num(formData, "portion_factor");
   if (!name) fail("/settings", "Вкажіть ім'я");
   if (!(factor > 0 && factor <= 3)) fail("/settings", "Порція має бути від 0,1 до 3");
+  const restrictions = parseRestrictions(str(formData, "restrictions"));
   const { error } = await supabase.from("family_members").insert({
     household_id: householdId,
     name,
     kind: str(formData, "kind") === "child" ? "child" : "adult",
     portion_factor: factor,
+    restrictions,
   });
   if (error) fail("/settings", error.message);
   revalidatePath("/", "layout");
@@ -336,7 +339,14 @@ export async function updateFamilyMember(formData: FormData) {
   const factor = num(formData, "portion_factor");
   if (!id) return;
   if (!(factor > 0 && factor <= 3)) fail("/settings", "Порція має бути від 0,1 до 3");
-  const { error } = await supabase.from("family_members").update({ portion_factor: factor }).eq("id", id);
+  const updateData: Record<string, unknown> = { portion_factor: factor };
+  const rawRestrictions = str(formData, "restrictions");
+  if (rawRestrictions) {
+    updateData.restrictions = parseRestrictions(rawRestrictions);
+  }
+  const name = str(formData, "name");
+  if (name) updateData.name = name;
+  const { error } = await supabase.from("family_members").update(updateData).eq("id", id);
   if (error) fail("/settings", error.message);
   revalidatePath("/", "layout");
 }
