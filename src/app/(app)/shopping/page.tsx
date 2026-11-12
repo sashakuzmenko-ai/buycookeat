@@ -83,7 +83,7 @@ export default async function ShoppingPage({ searchParams }: PageProps<"/shoppin
             <button className="btn-secondary border-brand-500 text-brand-700">Перенести куплене в запаси ({toStock})</button>
           </form>
         )}
-        <Link className="btn-secondary" href={`/?week=${week}`}>← Меню</Link>
+        <Link className="btn-secondary" href={`/menu?week=${week}`}>← Меню</Link>
         <span className="basis-full text-xs text-stone-500">
           Кількості — на всю сім&apos;ю, мінус те, що вже є в запасах; базові запаси (сіль, олія) не додаються.
         </span>
