@@ -347,6 +347,17 @@ export async function setCooked(formData: FormData) {
         p_items: usage.map((u) => ({ product_id: u.productId, delta: -u.quantity })),
       });
       if (rpc.error) fail(path, rpc.error.message);
+      await supabase
+        .from("pantry_movements")
+        .update({ source: "cooked", meal_plan_entry_id: id })
+        .eq("household_id", householdId)
+        .eq("source", "manual")
+        .is("meal_plan_entry_id", null)
+        .gte("created_at", new Date(Date.now() - 5000).toISOString())
+        .in(
+          "product_id",
+          usage.map((u) => u.productId),
+        );
     } else {
       // повертаємо тільки продукти, які є в запасах, щоб не «створити» сіль чи олію
       const { data: tracked } = await supabase.from("pantry_items").select("product_id");
