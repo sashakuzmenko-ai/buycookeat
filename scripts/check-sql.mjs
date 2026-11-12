@@ -70,4 +70,5 @@ const pantryOk = afterAdd[0] === 800 && afterUse[0] === 600 && afterEmpty.length
 console.log(`Запаси: ${afterAdd[0]} → ${afterUse[0]} → порожньо: ${afterEmpty.length === 0}, чужий заблокований: ${strangerBlocked}`);
 const pass = seenByA.length === 1 && seenByB.length === 0 && blocked && pantryOk;
 console.log(`RLS: власник бачить ${seenByA.length}, сторонній бачить ${seenByB.length}, чужий запис ${blocked ? "заблоковано" : "ПРОЙШОВ"}`);
-process.exit(pass ? 0 : 1);
+await db.close();
+process.exitCode = pass ? 0 : 1;
