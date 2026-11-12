@@ -1,10 +1,12 @@
 // Row types for new tables introduced in migration 20261112000000_scan_receipts_stock
 
+import type { ScanMode } from "./scan-types.ts";
+
 export type StorageZone = "fridge" | "freezer" | "pantry";
 export type MovementSource = "scan" | "cooked" | "inventory" | "manual";
 export type ScanInputType = "receipt" | "voice" | "video" | "screenshot" | "text";
 export type ScanStatus = "pending" | "confirmed" | "rejected";
-export type ScanMode = "add" | "set";
+export type { ScanMode };
 
 export type PantryMovementRow = {
   id: string;
