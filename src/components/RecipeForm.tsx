@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { Button, Card, Field } from "@/components/ui";
 import { MEAL_LABELS, MEAL_TYPES } from "@/lib/seed-data";
 
 type Product = { id: string; name: string; unit: string };
@@ -18,126 +20,201 @@ export type RecipeFormValues = {
   ingredients: { product_id: string; quantity: number; optional: boolean }[];
 };
 
+const controlClass =
+  "h-11 min-h-[44px] w-full rounded-12 border border-line-strong bg-surface px-3.5 text-[15px] text-ink outline-none transition focus:border-recipes focus:ring-2 focus:ring-recipes-tint";
+
 export function RecipeForm({
   action,
   products,
   initial,
 }: {
-  action: (formData: FormData) => void;
-  products: Product[];
-  initial?: RecipeFormValues;
+  readonly action: (formData: FormData) => void;
+  readonly products: readonly Product[];
+  readonly initial?: RecipeFormValues;
 }) {
   const [rows, setRows] = useState<Row[]>(() =>
     initial?.ingredients.length
-      ? initial.ingredients.map((r, i) => ({ key: i, product_id: r.product_id, quantity: String(r.quantity), optional: r.optional }))
+      ? initial.ingredients.map((row, index) => ({
+          key: index,
+          product_id: row.product_id,
+          quantity: String(row.quantity),
+          optional: row.optional,
+        }))
       : [{ key: 0, product_id: "", quantity: "", optional: false }],
   );
   const [nextKey, setNextKey] = useState(rows.length);
-  const unitOf = (id: string) => products.find((p) => p.id === id)?.unit ?? "";
+  const unitOf = (id: string) => products.find((product) => product.id === id)?.unit ?? "";
   const patch = (key: number, change: Partial<Row>) =>
-    setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...change } : r)));
+    setRows((current) => current.map((row) => (row.key === key ? { ...row, ...change } : row)));
 
   const payload = JSON.stringify(
-    rows.filter((r) => r.product_id).map(({ product_id, quantity, optional }) => ({ product_id, quantity, optional })),
+    rows
+      .filter((row) => row.product_id)
+      .map(({ product_id, quantity, optional }) => ({ product_id, quantity, optional })),
   );
 
   return (
     <form action={action} className="space-y-4">
-      {initial?.id && <input type="hidden" name="id" value={initial.id} />}
+      {initial?.id ? <input type="hidden" name="id" value={initial.id} /> : null}
       <input type="hidden" name="ingredients" value={payload} />
 
-      <div className="card space-y-3">
-        <div>
-          <label className="label" htmlFor="title">Назва</label>
-          <input className="input" id="title" name="title" defaultValue={initial?.title} required />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="label" htmlFor="base_servings">Дорослих порцій у рецепті</label>
-            <input className="input" id="base_servings" name="base_servings" inputMode="decimal" defaultValue={initial?.base_servings ?? 4} required />
-          </div>
-          <div>
-            <label className="label" htmlFor="cook_minutes">Час приготування, хв</label>
-            <input className="input" id="cook_minutes" name="cook_minutes" inputMode="numeric" defaultValue={initial?.cook_minutes ?? ""} />
-          </div>
+      <Card className="space-y-3 p-5">
+        <Field label="Назва" id="title" name="title" defaultValue={initial?.title} required module="recipes" />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Field
+            label="Дорослих порцій у рецепті"
+            id="base_servings"
+            name="base_servings"
+            inputMode="decimal"
+            defaultValue={initial?.base_servings ?? 4}
+            required
+            module="recipes"
+          />
+          <Field
+            label="Час приготування, хв"
+            id="cook_minutes"
+            name="cook_minutes"
+            inputMode="numeric"
+            defaultValue={initial?.cook_minutes ?? ""}
+            module="recipes"
+          />
         </div>
         <fieldset>
-          <legend className="label">Коли їмо</legend>
+          <legend className="mb-1.5 text-[13px] font-semibold text-ink-2">Коли їмо</legend>
           <div className="flex flex-wrap gap-3">
-            {MEAL_TYPES.map((m) => (
-              <label key={m} className="flex items-center gap-1.5 text-sm">
-                <input type="checkbox" name="meal_types" value={m} defaultChecked={initial?.meal_types.includes(m)} className="size-4 accent-brand-600" />
-                {MEAL_LABELS[m]}
+            {MEAL_TYPES.map((meal) => (
+              <label key={meal} className="flex min-h-11 items-center gap-2 text-[15px]">
+                <input
+                  type="checkbox"
+                  name="meal_types"
+                  value={meal}
+                  defaultChecked={initial?.meal_types.includes(meal)}
+                  className="size-[18px] accent-recipes"
+                />
+                {MEAL_LABELS[meal]}
               </label>
             ))}
           </div>
         </fieldset>
-      </div>
+      </Card>
 
-      <div className="card">
+      <Card className="p-5">
         <h2 className="h2 mb-3">Інгредієнти</h2>
         <div className="space-y-2">
           {rows.map((row) => (
             <div key={row.key} className="flex flex-wrap items-center gap-2">
               <select
-                className="input min-w-0 flex-1 basis-40"
+                className={`${controlClass} min-w-0 flex-1 basis-40`}
                 aria-label="Продукт"
                 value={row.product_id}
-                onChange={(e) => patch(row.key, { product_id: e.target.value })}
+                onChange={(event) => patch(row.key, { product_id: event.target.value })}
               >
                 <option value="">продукт…</option>
-                {products.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
+                {products.map((product) => (
+                  <option key={product.id} value={product.id}>
+                    {product.name}
+                  </option>
                 ))}
               </select>
               <input
-                className="input w-24"
+                className={`${controlClass} w-28 flex-none`}
                 aria-label="Кількість"
                 inputMode="decimal"
                 placeholder="к-сть"
                 value={row.quantity}
-                onChange={(e) => patch(row.key, { quantity: e.target.value })}
+                onChange={(event) => patch(row.key, { quantity: event.target.value })}
               />
-              <span className="w-6 text-sm text-stone-500">{unitOf(row.product_id)}</span>
-              <label className="flex items-center gap-1 text-xs text-stone-500">
-                <input type="checkbox" checked={row.optional} onChange={(e) => patch(row.key, { optional: e.target.checked })} className="size-4 accent-brand-600" />
+              <span className="w-8 text-sm text-ink-2">{unitOf(row.product_id)}</span>
+              <label className="flex min-h-11 items-center gap-2 text-[13px] text-ink-2">
+                <input
+                  type="checkbox"
+                  checked={row.optional}
+                  onChange={(event) => patch(row.key, { optional: event.target.checked })}
+                  className="size-[18px] accent-recipes"
+                />
                 за бажанням
               </label>
-              <button type="button" className="btn-ghost" aria-label="Прибрати інгредієнт" onClick={() => setRows((rs) => rs.filter((r) => r.key !== row.key))}>
+              <Button
+                type="button"
+                variant="secondary"
+                aria-label="Прибрати інгредієнт"
+                className="size-11 px-0"
+                onClick={() => setRows((current) => current.filter((item) => item.key !== row.key))}
+              >
                 ×
-              </button>
+              </Button>
             </div>
           ))}
         </div>
-        <button
+        <Button
           type="button"
-          className="btn-secondary mt-3"
+          variant="secondary"
+          className="mt-3"
           onClick={() => {
-            setRows((rs) => [...rs, { key: nextKey, product_id: "", quantity: "", optional: false }]);
-            setNextKey((k) => k + 1);
+            setRows((current) => [...current, { key: nextKey, product_id: "", quantity: "", optional: false }]);
+            setNextKey((key) => key + 1);
           }}
         >
           + інгредієнт
-        </button>
-        <p className="mt-2 text-xs text-stone-500">Немає потрібного продукту? Додайте його на сторінці «Продукти».</p>
-      </div>
+        </Button>
+        <p className="mt-2 text-[13px] text-ink-2">
+          Немає потрібного продукту? Додайте його на сторінці{" "}
+          <Link href="/products" className="font-semibold text-recipes">
+            Продукти
+          </Link>
+          .
+        </p>
+      </Card>
 
-      <div className="card space-y-3">
-        <div>
-          <label className="label" htmlFor="instructions">Приготування</label>
-          <textarea className="input min-h-40" id="instructions" name="instructions" defaultValue={initial?.instructions} />
-        </div>
-        <div>
-          <label className="label" htmlFor="kid_notes">Примітки для дітей</label>
-          <input className="input" id="kid_notes" name="kid_notes" defaultValue={initial?.kid_notes} placeholder="напр.: без перцю, перевірити на кістки" />
-        </div>
-        <div>
-          <label className="label" htmlFor="description">Короткий опис</label>
-          <input className="input" id="description" name="description" defaultValue={initial?.description} />
-        </div>
-      </div>
+      <Card className="space-y-3 p-5">
+        <LabeledTextarea id="instructions" name="instructions" label="Приготування" defaultValue={initial?.instructions} />
+        <Field
+          label="Примітки для дітей"
+          id="kid_notes"
+          name="kid_notes"
+          defaultValue={initial?.kid_notes}
+          placeholder="напр.: без перцю, перевірити на кістки"
+          module="recipes"
+        />
+        <Field
+          label="Короткий опис"
+          id="description"
+          name="description"
+          defaultValue={initial?.description}
+          module="recipes"
+        />
+      </Card>
 
-      <button className="btn">Зберегти рецепт</button>
+      <Button type="submit" module="recipes">
+        Зберегти рецепт
+      </Button>
     </form>
+  );
+}
+
+function LabeledTextarea({
+  id,
+  name,
+  label,
+  defaultValue,
+}: {
+  readonly id: string;
+  readonly name: string;
+  readonly label: string;
+  readonly defaultValue?: string;
+}) {
+  return (
+    <div className="flex w-full flex-col gap-1.5">
+      <label htmlFor={id} className="text-[13px] font-semibold text-ink-2">
+        {label}
+      </label>
+      <textarea
+        id={id}
+        name={name}
+        defaultValue={defaultValue}
+        rows={8}
+        className="min-h-40 w-full rounded-12 border border-line-strong bg-surface px-3.5 py-2.5 text-[15px] text-ink outline-none transition focus:border-recipes focus:ring-2 focus:ring-recipes-tint"
+      />
+    </div>
   );
 }

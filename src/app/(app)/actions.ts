@@ -6,6 +6,7 @@ import { getContext } from "@/lib/context";
 import { MEAL_TYPES, PRODUCT_CATEGORIES } from "@/lib/seed-data";
 import { autoFill, buildShoppingList, ingredientUsage, type PlanLine, type ProductInfo } from "@/lib/shopping";
 import { parseWeekParam, weekDays } from "@/lib/dates";
+import { recipeReturnPath } from "@/lib/recipes";
 
 // Кожна дія спершу викликає getContext(): без входу — редірект на /login.
 // Доступ до чужих рядків додатково закриває RLS у базі.
@@ -307,7 +308,7 @@ export async function setCooked(formData: FormData) {
   const { supabase, householdId, portions } = await getContext();
   const id = uuidOrNull(str(formData, "id"));
   const cooked = str(formData, "cooked") === "true";
-  const path = weekPath("/menu", parseWeekParam(str(formData, "week")));
+  const path = recipeReturnPath(str(formData, "return_to"), weekPath("/menu", parseWeekParam(str(formData, "week"))));
   if (!id) return;
 
   // перемикаємо лише з протилежного стану: подвійний клік не спише двічі
@@ -362,6 +363,8 @@ export async function setCooked(formData: FormData) {
   }
   revalidatePath("/menu");
   revalidatePath("/pantry");
+  revalidatePath("/recipes");
+  revalidatePath("/recipes/[id]", "page");
 }
 
 export async function toggleShoppingItem(formData: FormData) {
