@@ -3,6 +3,34 @@ import assert from "node:assert/strict";
 import { autoFill, buildShoppingList, formatQty, householdPortions, ingredientUsage, roundCooking, roundQty } from "../src/lib/shopping.ts";
 import { addDays, weekDays, weekStart } from "../src/lib/dates.ts";
 import { SEED_FAMILY, SEED_PRODUCTS, SEED_RECIPES, SEED_STORES, SEED_EQUIPMENT } from "../src/lib/seed-data.ts";
+import { MAIN_NAV_ITEMS, MORE_NAV_ITEMS, isRouteActive, isMoreActive } from "../src/components/shell/nav-items.ts";
+
+// навігація: вісім розділів у бічній панелі та їх порядок
+assert.deepEqual(
+  MAIN_NAV_ITEMS.map((i) => i.name),
+  ["Огляд", "Меню", "Рецепти", "Склад", "Магазини", "Фінанси", "Сім'я", "Скан"],
+);
+assert.deepEqual(
+  MAIN_NAV_ITEMS.map((i) => i.href),
+  ["/", "/menu", "/recipes", "/pantry", "/shopping", "/finance", "/settings", "/scan"],
+);
+assert.deepEqual(
+  MORE_NAV_ITEMS.map((i) => i.name),
+  ["Рецепти", "Магазини", "Фінанси", "Сім'я", "Продукти"],
+);
+assert.deepEqual(
+  MORE_NAV_ITEMS.map((i) => i.href),
+  ["/recipes", "/shopping", "/finance", "/settings", "/products"],
+);
+// активність маршрутів
+assert.equal(isRouteActive("/", "/"), true);
+assert.equal(isRouteActive("/", "/menu"), false);
+assert.equal(isRouteActive("/menu", "/menu"), true);
+assert.equal(isRouteActive("/recipes", "/recipes/xyz"), true);
+assert.equal(isMoreActive("/recipes"), true);
+assert.equal(isMoreActive("/products"), true);
+assert.equal(isMoreActive("/menu"), false);
+assert.equal(isMoreActive("/"), false);
 
 // порції: 1 + 1 + 0.55 + 0.3
 assert.equal(householdPortions([...SEED_FAMILY]), 2.85);

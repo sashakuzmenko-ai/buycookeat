@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getContext } from "@/lib/context";
 import { Notice } from "@/components/Notice";
 import { PRODUCT_CATEGORIES } from "@/lib/seed-data";
@@ -30,10 +31,17 @@ export default async function PantryPage({ searchParams }: PageProps<"/pantry">)
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="h1 mb-1">Запаси</h1>
-      <p className="mb-4 text-sm text-stone-600">
-        Що є вдома. Список покупок враховує запаси, а позначка «приготовано» в меню списує інгредієнти.
-      </p>
+      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
+        <div>
+          <h1 className="h1 mb-1">Запаси</h1>
+          <p className="text-sm text-stone-600">
+            Що є вдома. Список покупок враховує запаси, а позначка «приготовано» в меню списує інгредієнти.
+          </p>
+        </div>
+        <Link href="/products" className="btn-secondary text-sm">
+          Продукти →
+        </Link>
+      </div>
       <Notice params={await searchParams} />
 
       <form action={setPantryItem} className="card mb-5 flex flex-wrap items-end gap-2">
