@@ -56,6 +56,18 @@ import {
   formatMovements,
   type MovementInput,
 } from "../src/lib/pantry.ts";
+import {
+  familyCountTitle,
+  pluralYears,
+  formatMemberRole,
+  formatPortionFactor,
+  calculatePortionWidthPercent,
+  stepPortionFactor,
+  formatPortionsLabel,
+  dailyBudgetUah,
+  isAllergy,
+  parseRestrictions,
+} from "../src/lib/family.ts";
 import { MAIN_NAV_ITEMS, MORE_NAV_ITEMS, isRouteActive, isMoreActive } from "../src/components/shell/nav-items.ts";
 
 // навігація: вісім розділів у бічній панелі та їх порядок
@@ -664,5 +676,70 @@ assert.equal(formattedMoves[1].sign, "−");
 assert.equal(formattedMoves[2].title, "Інвентаризація");
 assert.equal(formattedMoves[2].sign, "=");
 assert.equal(formattedMoves[3].sign, "+");
+
+// Сім'я: логіка підписів, віку, порцій, бюджету та обмежень
+assert.equal(familyCountTitle(0), "Поки нікого");
+assert.equal(familyCountTitle(1), "Нас один");
+assert.equal(familyCountTitle(2), "Нас двоє");
+assert.equal(familyCountTitle(3), "Нас троє");
+assert.equal(familyCountTitle(4), "Нас четверо");
+assert.equal(familyCountTitle(5), "Нас п'ятеро");
+assert.equal(familyCountTitle(8), "Нас 8");
+
+assert.equal(pluralYears(1), "рік");
+assert.equal(pluralYears(2), "роки");
+assert.equal(pluralYears(4), "роки");
+assert.equal(pluralYears(5), "років");
+assert.equal(pluralYears(12), "років");
+assert.equal(pluralYears(21), "рік");
+
+const refDate = new Date("2026-11-12T12:00:00Z");
+assert.equal(formatMemberRole({ kind: "adult", notes: "дорослий" }, refDate), "дорослий");
+assert.equal(formatMemberRole({ kind: "adult", notes: "доросла" }, refDate), "доросла");
+assert.equal(formatMemberRole({ kind: "child", birth_date: "2014-06-01" }, refDate), "12 років");
+assert.equal(formatMemberRole({ kind: "child", birth_date: "2020-03-10" }, refDate), "6 років");
+assert.equal(formatMemberRole({ kind: "child" }, refDate), "дитина");
+
+assert.equal(formatPortionFactor(1), "1,0");
+assert.equal(formatPortionFactor(0.8), "0,8");
+assert.equal(formatPortionFactor(0.7), "0,7");
+
+assert.equal(calculatePortionWidthPercent(1.0), 100);
+assert.equal(calculatePortionWidthPercent(0.8), 80);
+assert.equal(calculatePortionWidthPercent(0.7), 70);
+assert.equal(calculatePortionWidthPercent(1.5), 100);
+assert.equal(calculatePortionWidthPercent(0), 0);
+
+assert.equal(stepPortionFactor(1.0, "inc"), 1.1);
+assert.equal(stepPortionFactor(1.0, "dec"), 0.9);
+assert.equal(stepPortionFactor(0.8, "inc"), 0.9);
+assert.equal(stepPortionFactor(0.1, "dec"), 0.1); // min clamp
+assert.equal(stepPortionFactor(3.0, "inc"), 3.0); // max clamp
+
+assert.equal(formatPortionsLabel(1), "1 порція");
+assert.equal(formatPortionsLabel(2), "2 порції");
+assert.equal(formatPortionsLabel(3.5), "3,5 порції");
+assert.equal(formatPortionsLabel(4), "4 порції");
+assert.equal(formatPortionsLabel(5), "5 порцій");
+assert.equal(formatPortionsLabel(0), "0 порцій");
+
+assert.equal(dailyBudgetUah(18000), 600);
+assert.equal(dailyBudgetUah(15000), 500);
+assert.equal(dailyBudgetUah(0), null);
+assert.equal(dailyBudgetUah(null), null);
+
+assert.equal(isAllergy("Алергія: горіхи"), true);
+assert.equal(isAllergy("алергія на лактозу"), true);
+assert.equal(isAllergy("Nut allergy"), true);
+assert.equal(isAllergy("Любить гостре"), false);
+assert.equal(isAllergy("Менше смаженого"), false);
+
+assert.deepEqual(parseRestrictions("Алергія: горіхи, Менше смаженого, Любить гостре"), [
+  "Алергія: горіхи",
+  "Менше смаженого",
+  "Любить гостре",
+]);
+assert.deepEqual(parseRestrictions(["Без грибів", "Вегетаріанець"]), ["Без грибів", "Вегетаріанець"]);
+assert.deepEqual(parseRestrictions(""), []);
 
 console.log(`ok: логіка і стартові дані (${SEED_PRODUCTS.length} продуктів, ${SEED_RECIPES.length} рецептів)`);
