@@ -11,12 +11,14 @@ export interface LevelBarProps extends React.HTMLAttributes<HTMLDivElement> {
   name?: React.ReactNode;
   amount?: React.ReactNode;
   module?: ModuleName;
+  note?: React.ReactNode;
+  hideStateLabel?: boolean;
 }
 
-const STATE_CONFIG: Record<LevelState, { color: string; defaultLabel: string }> = {
-  normal: { color: "", defaultLabel: "норма" },
-  low: { color: "#8A5600", defaultLabel: "мало" },
-  expiring: { color: "#B23A24", defaultLabel: "термін" },
+const STATE_CONFIG: Record<LevelState, { color: string; defaultLabel: string; noteColor: string }> = {
+  normal: { color: "", defaultLabel: "норма", noteColor: "#4A5750" },
+  low: { color: "#8A5600", defaultLabel: "мало", noteColor: "#6B4300" },
+  expiring: { color: "#B23A24", defaultLabel: "термін", noteColor: "#8C2A18" },
 };
 
 /**
@@ -32,6 +34,8 @@ export function LevelBar({
   name,
   amount,
   module = "pantry",
+  note,
+  hideStateLabel = false,
   className = "",
   ...props
 }: LevelBarProps) {
@@ -40,6 +44,7 @@ export function LevelBar({
 
   const stateCfg = STATE_CONFIG[state];
   const barColor = state === "normal" ? theme.color : stateCfg.color;
+  const showLabel = !hideStateLabel && stateLabel !== "";
   const resolvedStateLabel = stateLabel ?? stateCfg.defaultLabel;
 
   return (
@@ -47,10 +52,14 @@ export function LevelBar({
       <div className="flex justify-between items-baseline text-sm leading-normal">
         <div className="font-semibold text-ink flex items-center gap-1.5 flex-wrap">
           {name && <span>{name}</span>}
-          {name && <span className="text-ink-2 font-normal">·</span>}
-          <span style={{ color: barColor }} className="text-[13px] font-medium">
-            {resolvedStateLabel}
-          </span>
+          {showLabel && (
+            <>
+              {name && <span className="text-ink-2 font-normal">·</span>}
+              <span style={{ color: barColor }} className="text-[13px] font-medium">
+                {resolvedStateLabel}
+              </span>
+            </>
+          )}
         </div>
         {amount && (
           <span className="font-mono text-sm text-ink-2 font-medium shrink-0 ml-2">
@@ -79,6 +88,15 @@ export function LevelBar({
           className="h-full rounded-full transition-all duration-300"
         />
       </div>
+
+      {note && (
+        <div
+          style={{ color: stateCfg.noteColor }}
+          className="text-xs font-semibold leading-tight mt-0.5"
+        >
+          {note}
+        </div>
+      )}
     </div>
   );
 }
