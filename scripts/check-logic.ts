@@ -31,6 +31,24 @@ import {
   type MovementInput,
 } from "../src/lib/pantry.ts";
 import { MAIN_NAV_ITEMS, MORE_NAV_ITEMS, isRouteActive, isMoreActive } from "../src/components/shell/nav-items.ts";
+import { captureBlockReason, resolveCaptureType } from "../src/lib/scan/capture.ts";
+import { chooseProduct } from "../src/lib/scan/products.ts";
+import {
+  SCAN_INPUTS,
+  financeEffectLabel,
+  financeMonthLabel,
+  formatAmount,
+  formatScanDay,
+  formatScanWhen,
+  formatUah,
+  parseScanItems,
+  queueTitle,
+  shoppingEffectLabel,
+  statusLabel,
+  stockEffectLabel,
+} from "../src/lib/scan/present.ts";
+import { buildScanPrompt, normalizeScanResult } from "../src/lib/scan/recognize.ts";
+import { parseScanRequest } from "../src/lib/scan/request.ts";
 
 // навігація: вісім розділів у бічній панелі та їх порядок
 assert.deepEqual(
@@ -487,3 +505,87 @@ assert.equal(formattedMoves[2].sign, "=");
 assert.equal(formattedMoves[3].sign, "+");
 
 console.log(`ok: логіка і стартові дані (${SEED_PRODUCTS.length} продуктів, ${SEED_RECIPES.length} рецептів)`);
+
+assert.equal(SCAN_INPUTS.length, 5);
+assert.match(buildScanPrompt("add", []), /скріншот/i);
+assert.match(buildScanPrompt("add", []), /купив сир і сметану/);
+
+const scanCatalog = [{ id: "p1", name: "Сир", unit: "г" }];
+const recognized = normalizeScanResult(
+  {
+    source: "text",
+    store: "Сільпо",
+    total: 120,
+    items: [
+      { raw: "СИР", product_number: 1, name: "сир", category: "молочне", unit: "шт", quantity: 400, uncertain: false, price: 80 },
+      { raw: "???", product_number: 0, name: "", category: "інше", unit: "шт", quantity: 1, uncertain: true, price: 0 },
+      { raw: "Сметана", product_number: 0, name: "Сметана", category: "нема", unit: "відро", quantity: 200, uncertain: true, price: 40.5 },
+    ],
+  },
+  scanCatalog,
+  { model: "test", costUsd: null },
+);
+assert.equal(recognized.source, "text");
+assert.equal(recognized.store, "Сільпо");
+assert.equal(recognized.total, 120);
+assert.equal(recognized.items.length, 2);
+assert.equal(recognized.items[0].productId, "p1");
+assert.equal(recognized.items[0].unit, "г");
+assert.equal(recognized.items[0].price, 80);
+assert.equal(recognized.items[1].name, "Сметана");
+assert.equal(recognized.items[1].unit, "шт");
+assert.equal(recognized.items[1].category, "інше");
+assert.equal(recognized.items[1].uncertain, true);
+
+const textRequest = parseScanRequest({ text: "купив сир і сметану", inputType: "text" });
+assert.equal(textRequest.ok, true);
+if (textRequest.ok) assert.equal(textRequest.value.inputType, "text");
+const shot = parseScanRequest({ images: ["data:image/jpeg;base64,aaaa"], inputType: "screenshot" });
+assert.equal(shot.ok, true);
+if (shot.ok) assert.equal(shot.value.inputType, "screenshot");
+const tooMany = parseScanRequest({ images: Array.from({ length: 20 }, () => "data:image/jpeg;base64,qq") });
+assert.equal(tooMany.ok, true);
+if (tooMany.ok) assert.equal(tooMany.value.images.length, 12);
+assert.equal(parseScanRequest({}).ok, false);
+assert.equal(parseScanRequest({ audio: "не base64" }).ok, false);
+
+const knownIds = new Set(["p1"]);
+const knownNames = new Map([["сметана", "p2"]]);
+assert.deepEqual(chooseProduct({ productId: "p1", name: "X", category: "інше", unit: "г" }, knownIds, knownNames), { kind: "existing", productId: "p1" });
+assert.deepEqual(chooseProduct({ productId: null, name: "Сметана", category: "молочне", unit: "г" }, knownIds, knownNames), { kind: "existing", productId: "p2" });
+const createdChoice = chooseProduct({ productId: null, name: "Кефір", category: "нема", unit: "літр" }, knownIds, knownNames);
+assert.equal(createdChoice.kind, "create");
+if (createdChoice.kind === "create") {
+  assert.equal(createdChoice.category, "інше");
+  assert.equal(createdChoice.unit, "шт");
+}
+assert.equal(chooseProduct({ productId: "nope", name: "  ", category: "інше", unit: "г" }, knownIds, knownNames).kind, "skip");
+
+const scanNow = new Date("2026-11-12T12:00:00Z");
+assert.equal(formatScanWhen("2026-11-12T08:42:00Z", scanNow), "10:42");
+assert.equal(formatScanWhen("2026-11-11T20:00:00Z", scanNow), "учора");
+assert.equal(formatScanWhen("2026-11-10T08:00:00Z", scanNow), "10.11");
+assert.equal(formatScanDay("2026-11-12T08:42:00Z"), "12.11.2026");
+assert.equal(queueTitle("receipt", "Сільпо", "telegram"), "Чек · Сільпо");
+assert.equal(queueTitle("voice", null, "web"), "Голос · Веб");
+assert.equal(statusLabel("pending"), "Перевірити");
+assert.equal(formatUah(1284.5), "1 284,50 ₴");
+assert.equal(formatAmount(93.8), "93,80");
+assert.equal(stockEffectLabel("add", 18), "+18 позицій");
+assert.equal(stockEffectLabel("set", 2), "оновити 2 позиції");
+assert.equal(financeEffectLabel("add", 1284.5), "+1 284,50 ₴");
+assert.equal(financeEffectLabel("add", null), "без суми");
+assert.equal(financeEffectLabel("set", 10), "без чека");
+assert.equal(shoppingEffectLabel("add", 3), "перерахунок зі складу");
+assert.equal(shoppingEffectLabel("set", 0), "без змін");
+assert.equal(financeMonthLabel("2026-11-12T10:00:00Z"), "Фінанси · листопад");
+assert.equal(parseScanItems([{ raw: "СИР", productId: "p1", name: "Сир", category: "молочне", unit: "г", quantity: 200, uncertain: false, price: 80 }])[0]?.productId, "p1");
+assert.equal(parseScanItems([{ quantity: 0, name: "Порожньо" }]).length, 0);
+
+assert.equal(resolveCaptureType("screenshot", { images: 1, audio: false, fromVideo: false, text: "", note: "" }), "screenshot");
+assert.equal(resolveCaptureType("file", { images: 2, audio: true, fromVideo: true, text: "", note: "" }), "video");
+assert.equal(resolveCaptureType("file", { images: 0, audio: false, fromVideo: false, text: "купив сир", note: "" }), "text");
+assert.equal(captureBlockReason("text", { images: 0, audio: false, fromVideo: false, text: "", note: "" }), "Напишіть, що купили");
+assert.equal(captureBlockReason("voice", { images: 0, audio: true, fromVideo: false, text: "", note: "" }), null);
+
+console.log("ok: скан — розпізнавання, черга, наслідки");
