@@ -1,6 +1,7 @@
 // node scripts/check-logic.ts — перевірка розрахунку порцій, списку покупок і автозаповнення
 import assert from "node:assert/strict";
 import { autoFill, buildShoppingList, formatQty, householdPortions, ingredientUsage, roundCooking, roundQty } from "../src/lib/shopping.ts";
+import { dayMarkFromSlots, dishStockStatus, pantryCoveragePercent, positionCountLabel, summarizeMenu } from "../src/lib/menu.ts";
 import {
   availabilityLabel,
   catalogHref,
@@ -154,6 +155,102 @@ for (const r of SEED_RECIPES) {
   }
   for (const e of r.equipment ?? []) assert.ok(equipment.has(e), `${r.title}: немає техніки «${e}»`);
 }
+
+// меню: статус страви від залишків, покриття тижня і кількість позицій до покупки
+const menuProducts = new Map([
+  ["potato", { unit: "г", isStaple: false, storeId: null }],
+  ["salt", { unit: "г", isStaple: true, storeId: null }],
+  ["sour", { unit: "г", isStaple: false, storeId: null }],
+  ["milk", { unit: "мл", isStaple: false, storeId: null }],
+]);
+const menuLine = {
+  servings: null,
+  baseServings: 4,
+  ingredients: [
+    { productId: "potato", quantity: 400, optional: false },
+    { productId: "salt", quantity: 20, optional: false },
+    { productId: "sour", quantity: 50, optional: true },
+    { productId: "milk", quantity: 200, optional: false },
+  ],
+};
+const shortStock = new Map([["potato", 200], ["milk", 40]]);
+const shortDish = dishStockStatus({ cooked: false, line: menuLine }, 2, menuProducts, shortStock);
+assert.equal(shortDish.kind, "missing");
+assert.equal(shortDish.missingCount, 1);
+assert.deepEqual([...shortDish.missingProductIds], ["milk"]);
+assert.equal(dishStockStatus({ cooked: true, line: menuLine }, 2, menuProducts, shortStock).kind, "cooked");
+assert.equal(
+  dishStockStatus({ cooked: false, line: menuLine }, 2, menuProducts, new Map([["potato", 200], ["milk", 100]])).kind,
+  "ready",
+);
+assert.equal(dishStockStatus({ cooked: false, line: null }, 2, menuProducts, shortStock).kind, "ready");
+assert.deepEqual(
+  dishStockStatus({ cooked: false, line: menuLine }, 2, menuProducts, new Map()).missingProductIds,
+  ["potato", "milk"],
+);
+const saltOnly = {
+  servings: 1,
+  baseServings: 1,
+  ingredients: [{ productId: "salt", quantity: 10, optional: false }],
+};
+assert.equal(dishStockStatus({ cooked: false, line: saltOnly }, 1, menuProducts, new Map()).kind, "ready");
+assert.equal(pantryCoveragePercent([saltOnly], 1, menuProducts, new Map()), null);
+
+const weekSummary = summarizeMenu(
+  [
+    { cooked: false, line: menuLine },
+    { cooked: true, line: menuLine },
+    { cooked: false, line: null },
+  ],
+  2,
+  menuProducts,
+  shortStock,
+);
+assert.equal(weekSummary.coveragePercent, 70);
+assert.equal(weekSummary.cookedCount, 1);
+assert.equal(weekSummary.plannedCount, 3);
+assert.equal(weekSummary.toBuyCount, 1);
+
+const potatoDish = {
+  servings: null,
+  baseServings: 1,
+  ingredients: [{ productId: "potato", quantity: 200, optional: false }],
+};
+const shared = summarizeMenu(
+  [
+    { cooked: false, line: potatoDish },
+    { cooked: false, line: potatoDish },
+  ],
+  1,
+  menuProducts,
+  new Map([["potato", 200]]),
+);
+assert.equal(dishStockStatus({ cooked: false, line: potatoDish }, 1, menuProducts, new Map([["potato", 200]])).kind, "ready");
+assert.equal(shared.coveragePercent, 50);
+assert.equal(shared.toBuyCount, 1);
+assert.equal(summarizeMenu([{ cooked: true, line: potatoDish }], 1, menuProducts, new Map()).toBuyCount, 0);
+
+assert.equal(dayMarkFromSlots([
+  { filled: true, cooked: true },
+  { filled: true, cooked: true },
+  { filled: true, cooked: true },
+]), "done");
+assert.equal(dayMarkFromSlots([
+  { filled: true, cooked: true },
+  { filled: true, cooked: false },
+  { filled: true, cooked: true },
+]), "planned");
+assert.equal(dayMarkFromSlots([
+  { filled: true, cooked: true },
+  { filled: false, cooked: false },
+  { filled: false, cooked: false },
+]), "open");
+assert.equal(positionCountLabel(1), "1 позиція");
+assert.equal(positionCountLabel(2), "2 позиції");
+assert.equal(positionCountLabel(5), "5 позицій");
+assert.equal(positionCountLabel(11), "11 позицій");
+assert.equal(positionCountLabel(14), "14 позицій");
+assert.equal(positionCountLabel(21), "21 позиція");
 
 // рецепти: порція сім'ї, залишок і ціна однієї порції
 assert.equal(scaledNeed(1000, 4, 2.85), 712.5);
