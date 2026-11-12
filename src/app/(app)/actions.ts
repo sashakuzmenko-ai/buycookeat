@@ -6,6 +6,7 @@ import { getContext } from "@/lib/context";
 import { MEAL_TYPES, PRODUCT_CATEGORIES } from "@/lib/seed-data";
 import { autoFill, buildShoppingList, ingredientUsage, type PlanLine, type ProductInfo } from "@/lib/shopping";
 import { parseWeekParam, weekDays } from "@/lib/dates";
+import { recipeReturnPath } from "@/lib/recipes";
 
 // Кожна дія спершу викликає getContext(): без входу — редірект на /login.
 // Доступ до чужих рядків додатково закриває RLS у базі.
@@ -29,7 +30,7 @@ const weekPath = (base: string, week: string) => `${base}?week=${week}`;
 export async function addPlanEntry(formData: FormData) {
   const { supabase, householdId } = await getContext();
   const week = parseWeekParam(str(formData, "week"));
-  const path = weekPath("/", week);
+  const path = weekPath("/menu", week);
   const date = str(formData, "date");
   const mealType = str(formData, "meal_type");
   const recipeId = uuidOrNull(str(formData, "recipe_id"));
@@ -41,20 +42,20 @@ export async function addPlanEntry(formData: FormData) {
     .from("meal_plan_entries")
     .insert({ household_id: householdId, plan_date: date, meal_type: mealType, recipe_id: recipeId });
   if (error) fail(path, error.message);
-  revalidatePath("/");
+  revalidatePath("/menu");
 }
 
 export async function removePlanEntry(formData: FormData) {
   const { supabase } = await getContext();
   const id = uuidOrNull(str(formData, "id"));
   if (id) await supabase.from("meal_plan_entries").delete().eq("id", id);
-  revalidatePath("/");
+  revalidatePath("/menu");
 }
 
 export async function autoFillWeek(formData: FormData) {
   const { supabase, householdId } = await getContext();
   const week = parseWeekParam(str(formData, "week"));
-  const path = weekPath("/", week);
+  const path = weekPath("/menu", week);
   const days = weekDays(week);
 
   const [entries, recipes] = await Promise.all([
@@ -78,7 +79,7 @@ export async function autoFillWeek(formData: FormData) {
     );
     if (error) fail(path, error.message);
   }
-  revalidatePath("/");
+  revalidatePath("/menu");
 }
 
 export async function clearWeek(formData: FormData) {
@@ -91,8 +92,8 @@ export async function clearWeek(formData: FormData) {
     .eq("household_id", householdId)
     .gte("plan_date", days[0])
     .lte("plan_date", days[6]);
-  if (error) fail(weekPath("/", week), error.message);
-  revalidatePath("/");
+  if (error) fail(weekPath("/menu", week), error.message);
+  revalidatePath("/menu");
 }
 
 // ---------- Рецепти ----------
@@ -307,7 +308,7 @@ export async function setCooked(formData: FormData) {
   const { supabase, householdId, portions } = await getContext();
   const id = uuidOrNull(str(formData, "id"));
   const cooked = str(formData, "cooked") === "true";
-  const path = weekPath("/", parseWeekParam(str(formData, "week")));
+  const path = recipeReturnPath(str(formData, "return_to"), weekPath("/menu", parseWeekParam(str(formData, "week"))));
   if (!id) return;
 
   // перемикаємо лише з протилежного стану: подвійний клік не спише двічі
@@ -360,8 +361,10 @@ export async function setCooked(formData: FormData) {
       }
     }
   }
-  revalidatePath("/");
+  revalidatePath("/menu");
   revalidatePath("/pantry");
+  revalidatePath("/recipes");
+  revalidatePath("/recipes/[id]", "page");
 }
 
 export async function toggleShoppingItem(formData: FormData) {

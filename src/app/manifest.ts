@@ -7,8 +7,15 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Меню, покупки і рецепти для сім'ї",
     start_url: "/",
     display: "standalone",
-    background_color: "#f7f6f2",
-    theme_color: "#2f7a40",
+    background_color: "#F3F5F1",
+    theme_color: "#1E6B45",
     lang: "uk",
+    icons: [
+      {
+        src: "/icon.svg",
+        sizes: "any",
+        type: "image/svg+xml",
+      },
+    ],
   };
 }

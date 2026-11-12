@@ -10,8 +10,10 @@ export function Notice({ params }: { params: Params }) {
   return (
     <div
       role={error ? "alert" : "status"}
-      className={`mb-4 rounded-lg border px-3 py-2 text-sm ${
-        error ? "border-red-200 bg-red-50 text-red-800" : "border-brand-100 bg-brand-50 text-brand-700"
+      className={`mb-4 rounded-12 border px-4 py-3 text-sm font-medium ${
+        error
+          ? "border-recipes/30 bg-recipes-tint text-recipes-ink"
+          : "border-menu/30 bg-menu-tint text-menu-ink"
       }`}
     >
       {error ?? info}
