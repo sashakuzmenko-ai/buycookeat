@@ -5,14 +5,14 @@ import { Sidebar } from "./Sidebar";
 import { BottomNav } from "./BottomNav";
 
 export interface AppShellProps {
-  household: {
-    name: string;
-    city: string | null;
+  readonly household: {
+    readonly name: string;
+    readonly city: string | null;
   };
-  children: React.ReactNode;
+  readonly children: React.ReactNode;
 }
 
-export function AppShell({ household, children }: AppShellProps) {
+export function AppShell({ household, children }: Readonly<AppShellProps>) {
   return (
     <div className="min-h-screen bg-ground text-ink font-sans flex flex-col lg:flex-row w-full max-w-full overflow-x-hidden">
       {/* Бічна панель: ≥ 1024 px */}

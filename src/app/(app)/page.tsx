@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+  readonly searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = searchParams ? await searchParams : {};
   const sp = new URLSearchParams();

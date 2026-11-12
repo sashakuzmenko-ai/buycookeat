@@ -1,14 +1,14 @@
 export interface NavItem {
-  name: string;
-  href: string;
-  color: string;
-  tint: string;
-  ink: string;
-  iconPath: string;
-  module: string;
+  readonly name: string;
+  readonly href: string;
+  readonly color: string;
+  readonly tint: string;
+  readonly ink: string;
+  readonly iconPath: string;
+  readonly module: string;
 }
 
-export const MAIN_NAV_ITEMS: NavItem[] = [
+export const MAIN_NAV_ITEMS: readonly NavItem[] = [
   {
     name: "Огляд",
     href: "/",
@@ -83,52 +83,21 @@ export const MAIN_NAV_ITEMS: NavItem[] = [
   },
 ];
 
-export const MORE_NAV_ITEMS: NavItem[] = [
-  {
-    name: "Рецепти",
-    href: "/recipes",
-    color: "#B23A24",
-    tint: "#FBE6E0",
-    ink: "#8C2A18",
-    iconPath: "M6 4h12v16H6zM9 8h6M9 12h6",
-    module: "recipes",
-  },
-  {
-    name: "Магазини",
-    href: "/shopping",
-    color: "#8A5600",
-    tint: "#FBEFD2",
-    ink: "#6B4300",
-    iconPath: "M6 8h12l-1 12H7zM9 8a3 3 0 0 1 6 0",
-    module: "shops",
-  },
-  {
-    name: "Фінанси",
-    href: "/finance",
-    color: "#3346A0",
-    tint: "#E3E7F8",
-    ink: "#26357D",
-    iconPath: "M5 20V10M12 20V4M19 20v-7",
-    module: "finance",
-  },
-  {
-    name: "Сім'я",
-    href: "/settings",
-    color: "#7A3E78",
-    tint: "#F1E3F0",
-    ink: "#5C2D5A",
-    iconPath: "M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 20a5 5 0 0 1 10 0M17 11a2.5 2.5 0 1 0 0-5M15 15a4.5 4.5 0 0 1 6 5",
-    module: "family",
-  },
-  {
-    name: "Продукти",
-    href: "/products",
-    color: "#14201A",
-    tint: "#EEF1ED",
-    ink: "#14201A",
-    iconPath: "M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4H6zM3 6h18M16 10a4 4 0 01-8 0",
-    module: "products",
-  },
+const PRODUCTS_NAV_ITEM: NavItem = {
+  name: "Продукти",
+  href: "/products",
+  color: "#14201A",
+  tint: "#EEF1ED",
+  ink: "#14201A",
+  iconPath: "M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4H6zM3 6h18M16 10a4 4 0 01-8 0",
+  module: "products",
+};
+
+const MORE_HREFS: readonly string[] = ["/recipes", "/shopping", "/finance", "/settings"];
+
+export const MORE_NAV_ITEMS: readonly NavItem[] = [
+  ...MAIN_NAV_ITEMS.filter((item) => MORE_HREFS.includes(item.href)),
+  PRODUCTS_NAV_ITEM,
 ];
 
 export function isRouteActive(href: string, pathname: string): boolean {

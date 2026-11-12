@@ -7,13 +7,13 @@ import { MAIN_NAV_ITEMS, isRouteActive } from "./nav-items";
 import { signOut } from "@/app/auth-actions";
 
 export interface SidebarProps {
-  household: {
-    name: string;
-    city: string | null;
+  readonly household: {
+    readonly name: string;
+    readonly city: string | null;
   };
 }
 
-export function Sidebar({ household }: SidebarProps) {
+export function Sidebar({ household }: Readonly<SidebarProps>) {
   const pathname = usePathname();
 
   return (

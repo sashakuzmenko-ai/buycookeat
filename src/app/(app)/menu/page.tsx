@@ -16,11 +16,14 @@ type Entry = {
 
 const SLOTS: MealType[] = ["breakfast", "lunch", "dinner"];
 
-export default async function MenuPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ week?: string; [key: string]: string | string[] | undefined }>;
-}) {
+type MenuPageProps = {
+  readonly searchParams: Promise<{
+    readonly week?: string;
+    readonly [key: string]: string | string[] | undefined;
+  }>;
+};
+
+export default async function MenuPage({ searchParams }: MenuPageProps) {
   const params = await searchParams;
   const week = parseWeekParam(typeof params.week === "string" ? params.week : undefined);
   const days = weekDays(week);
@@ -61,13 +64,13 @@ export default async function MenuPage({
       <div className="mb-5 flex flex-wrap gap-2">
         <form action={autoFillWeek}>
           <input type="hidden" name="week" value={week} />
-          <button className="btn">Заповнити порожні дні</button>
+          <button type="submit" className="btn">Заповнити порожні дні</button>
         </form>
         <Link className="btn-secondary" href={`/shopping?week=${week}`}>Список покупок →</Link>
         {entries.length > 0 && (
           <form action={clearWeek} className="ml-auto">
             <input type="hidden" name="week" value={week} />
-            <button className="btn-ghost">Очистити тиждень</button>
+            <button type="submit" className="btn-ghost">Очистити тиждень</button>
           </form>
         )}
       </div>
@@ -97,8 +100,8 @@ export default async function MenuPage({
                           <input type="hidden" name="week" value={week} />
                           <input type="hidden" name="cooked" value={String(!e.cooked_at)} />
                           <button
-                            role="checkbox"
-                            aria-checked={Boolean(e.cooked_at)}
+                            type="submit"
+                            aria-pressed={Boolean(e.cooked_at)}
                             aria-label={`Приготовано: ${e.recipes?.title ?? e.title}`}
                             title={e.cooked_at ? "Приготовано — натисніть, щоб скасувати" : "Позначити як приготовано (спише продукти із запасів)"}
                             className={`flex size-5 cursor-pointer items-center justify-center rounded border text-xs text-white ${
@@ -123,7 +126,7 @@ export default async function MenuPage({
                         )}
                         <form action={removePlanEntry}>
                           <input type="hidden" name="id" value={e.id} />
-                          <button className="btn-ghost" aria-label={`Прибрати: ${e.recipes?.title ?? e.title}`}>×</button>
+                          <button type="submit" className="btn-ghost" aria-label={`Прибрати: ${e.recipes?.title ?? e.title}`}>×</button>
                         </form>
                       </div>
                     ))}
@@ -151,7 +154,7 @@ export default async function MenuPage({
                             </optgroup>
                           )}
                         </select>
-                        <button className="btn-secondary px-2.5 py-1.5" aria-label="Додати">+</button>
+                        <button type="submit" className="btn-secondary px-2.5 py-1.5" aria-label="Додати">+</button>
                       </form>
                     )}
                   </div>
