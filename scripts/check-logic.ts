@@ -2,6 +2,20 @@
 import assert from "node:assert/strict";
 import { autoFill, buildShoppingList, formatQty, householdPortions, ingredientUsage, roundCooking, roundQty } from "../src/lib/shopping.ts";
 import { dayMarkFromSlots, dishStockStatus, pantryCoveragePercent, positionCountLabel, summarizeMenu } from "../src/lib/menu.ts";
+import {
+  availabilityLabel,
+  catalogHref,
+  coverIngredients,
+  formatPortionPrice,
+  freshestPrices,
+  matchesCatalog,
+  mealTypeForNewEntry,
+  parseCatalogFilters,
+  pickUncookedToday,
+  portionPriceUah,
+  recipeReturnPath,
+  scaledNeed,
+} from "../src/lib/recipes.ts";
 import { addDays, weekDays, weekStart } from "../src/lib/dates.ts";
 import { SEED_FAMILY, SEED_PRODUCTS, SEED_RECIPES, SEED_STORES, SEED_EQUIPMENT } from "../src/lib/seed-data.ts";
 import { MAIN_NAV_ITEMS, MORE_NAV_ITEMS, isRouteActive, isMoreActive } from "../src/components/shell/nav-items.ts";
@@ -237,5 +251,84 @@ assert.equal(positionCountLabel(5), "5 позицій");
 assert.equal(positionCountLabel(11), "11 позицій");
 assert.equal(positionCountLabel(14), "14 позицій");
 assert.equal(positionCountLabel(21), "21 позиція");
+
+// рецепти: порція сім'ї, залишок і ціна однієї порції
+assert.equal(scaledNeed(1000, 4, 2.85), 712.5);
+const covered = coverIngredients(
+  [
+    { productId: "potato", name: "Картопля", unit: "г", quantity: 100, optional: false },
+    { productId: "potato", name: "Картопля", unit: "г", quantity: 100, optional: false },
+    { productId: "cream", name: "Сметана", unit: "г", quantity: 50, optional: true },
+  ],
+  1,
+  1,
+  new Map([["potato", 150]]),
+);
+assert.equal(covered.length, 2);
+assert.equal(covered[0].needed, 200);
+assert.equal(covered[0].short, true);
+assert.equal(covered[1].short, false);
+assert.equal(covered[1].lacks, true);
+assert.equal(availabilityLabel(1200, 400, "г").replace(/\s/g, " "), "є 1,2 кг");
+assert.equal(availabilityLabel(100, 400, "г").replace(/\s/g, " "), "бракує 300 г");
+
+const priceIngredients = [
+  { productId: "potato", quantity: 800, optional: false, unit: "г" },
+  { productId: "eggs", quantity: 2, optional: false, unit: "шт" },
+  { productId: "salt", quantity: 10, optional: false, unit: "г" },
+  { productId: "cream", quantity: 50, optional: true, unit: "г" },
+];
+const fresh = freshestPrices([
+  { productId: "potato", price: "20", updatedAt: "2026-11-01T00:00:00Z" },
+  { productId: "potato", price: 40, updatedAt: "2026-11-10T00:00:00Z" },
+  { productId: "eggs", price: 6, updatedAt: null },
+  { productId: "salt", price: -1, updatedAt: "2026-11-12T00:00:00Z" },
+]);
+assert.equal(fresh.get("potato"), 40);
+assert.equal(fresh.get("salt"), undefined);
+assert.equal(portionPriceUah(4, priceIngredients, fresh), null);
+assert.equal(
+  portionPriceUah(4, priceIngredients.filter((item) => item.productId !== "salt"), fresh),
+  11,
+);
+assert.equal(formatPortionPrice(31.4).replace(/\s/g, " "), "≈ 31 ₴");
+
+const catalogRecipe = {
+  title: "Борщ",
+  productNames: ["Картопля", "Буряк"],
+  mealTypes: ["lunch"],
+  cookMinutes: 30 as number | null,
+  missingCount: 0,
+};
+assert.equal(matchesCatalog(catalogRecipe, { q: "карт", meal: null, quick: false, now: false }), true);
+assert.equal(matchesCatalog(catalogRecipe, { q: "борщ", meal: "lunch", quick: true, now: true }), true);
+assert.equal(matchesCatalog(catalogRecipe, { q: "", meal: "dinner", quick: false, now: false }), false);
+assert.equal(matchesCatalog({ ...catalogRecipe, cookMinutes: null }, { q: "", meal: null, quick: true, now: false }), false);
+assert.equal(matchesCatalog({ ...catalogRecipe, cookMinutes: 45 }, { q: "", meal: null, quick: true, now: false }), false);
+assert.equal(matchesCatalog({ ...catalogRecipe, missingCount: 2 }, { q: "", meal: null, quick: false, now: true }), false);
+assert.equal(matchesCatalog({ ...catalogRecipe, missingCount: null }, { q: "", meal: null, quick: false, now: true }), false);
+assert.equal(
+  decodeURIComponent(catalogHref({ q: "  курка ", meal: "dinner", quick: true, now: false })),
+  "/recipes?q=курка&meal=dinner&quick=1",
+);
+assert.deepEqual(parseCatalogFilters({ q: " борщ ", meal: "nope", quick: "1", now: "0" }), {
+  q: "борщ",
+  meal: null,
+  quick: true,
+  now: false,
+});
+
+assert.equal(pickUncookedToday([
+  { id: "dinner", cookedAt: null, mealType: "dinner" },
+  { id: "breakfast", cookedAt: null, mealType: "breakfast" },
+  { id: "done", cookedAt: "2026-11-12T08:00:00Z", mealType: "lunch" },
+])?.id, "breakfast");
+assert.equal(pickUncookedToday([{ id: "done", cookedAt: "2026-11-12T08:00:00Z", mealType: "lunch" }]), null);
+assert.equal(mealTypeForNewEntry(["snack"]), "snack");
+assert.equal(mealTypeForNewEntry([]), "lunch");
+assert.equal(recipeReturnPath("/recipes", "/menu"), "/recipes");
+assert.equal(recipeReturnPath("/recipes/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", "/menu"), "/recipes/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+assert.equal(recipeReturnPath("https://evil.test/recipes", "/menu"), "/menu");
+assert.equal(recipeReturnPath("/recipes/not-an-id", "/menu"), "/menu");
 
 console.log(`ok: логіка і стартові дані (${SEED_PRODUCTS.length} продуктів, ${SEED_RECIPES.length} рецептів)`);

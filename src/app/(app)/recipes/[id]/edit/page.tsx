@@ -23,7 +23,9 @@ export default async function EditRecipePage({ params, searchParams }: PageProps
 
   return (
     <div className="mx-auto max-w-2xl">
-      <Link href={`/recipes/${id}`} className="text-sm text-stone-500 hover:underline">← Назад до рецепта</Link>
+      <Link href={`/recipes/${id}`} className="text-sm font-semibold text-recipes">
+        ← Назад до рецепта
+      </Link>
       <h1 className="h1 mt-2 mb-4">Редагування</h1>
       <Notice params={await searchParams} />
       <RecipeForm
@@ -38,10 +40,10 @@ export default async function EditRecipePage({ params, searchParams }: PageProps
           cook_minutes: recipe.cook_minutes,
           meal_types: recipe.meal_types ?? [],
           kid_notes: recipe.kid_notes ?? "",
-          ingredients: (recipe.recipe_ingredients ?? []).map((i) => ({
-            product_id: i.product_id as string,
-            quantity: Number(i.quantity),
-            optional: i.optional as boolean,
+          ingredients: (recipe.recipe_ingredients ?? []).map((ingredient) => ({
+            product_id: ingredient.product_id as string,
+            quantity: Number(ingredient.quantity),
+            optional: ingredient.optional as boolean,
           })),
         }}
       />
