@@ -16,7 +16,43 @@ import {
   recipeReturnPath,
   scaledNeed,
 } from "../src/lib/recipes.ts";
+import {
+  StorePriceIndex,
+  buildMonthlyStoreSummaries,
+  buildPriceComparisonTable,
+  calculateItemEstimatedPrice,
+  findStoreSavingsRecommendation,
+  normalizeReceiptItemPrice,
+  pluralizeChecks,
+  pluralizePositions as pluralizePricePositions,
+} from "../src/lib/prices.ts";
 import { addDays, weekDays, weekStart } from "../src/lib/dates.ts";
+import {
+  FORECAST_MIN_ELAPSED_DAYS,
+  amountOf,
+  averageReceipt,
+  budgetRemaining,
+  categoryTotals,
+  daysInMonth,
+  daysInYear,
+  forecastState,
+  formatShare,
+  formatUah,
+  monthForecast,
+  monthTitle,
+  pace,
+  parseMoney,
+  parsePeriod,
+  periodTitle,
+  priceChanges,
+  readBudget,
+  shiftAnchor,
+  storeTotals,
+  summarizePeriod,
+  totalsByMonth,
+  totalsByWeek,
+  type DatedLine,
+} from "../src/lib/finance.ts";
 import { SEED_FAMILY, SEED_PRODUCTS, SEED_RECIPES, SEED_STORES, SEED_EQUIPMENT } from "../src/lib/seed-data.ts";
 import {
   pluralizePositions,
@@ -30,6 +66,18 @@ import {
   formatMovements,
   type MovementInput,
 } from "../src/lib/pantry.ts";
+import {
+  familyCountTitle,
+  pluralYears,
+  formatMemberRole,
+  formatPortionFactor,
+  calculatePortionWidthPercent,
+  stepPortionFactor,
+  formatPortionsLabel,
+  dailyBudgetUah,
+  isAllergy,
+  parseRestrictions,
+} from "../src/lib/family.ts";
 import { MAIN_NAV_ITEMS, MORE_NAV_ITEMS, isRouteActive, isMoreActive } from "../src/components/shell/nav-items.ts";
 import { captureBlockReason, resolveCaptureType } from "../src/lib/scan/capture.ts";
 import { chooseProduct } from "../src/lib/scan/products.ts";
@@ -361,6 +409,258 @@ assert.equal(recipeReturnPath("/recipes/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", "
 assert.equal(recipeReturnPath("https://evil.test/recipes", "/menu"), "/menu");
 assert.equal(recipeReturnPath("/recipes/not-an-id", "/menu"), "/menu");
 
+// ціни: нормалізація, індекс із чеками і store_products, орієнтовна вартість
+assert.equal(normalizeReceiptItemPrice(1000, "г", 45.9), 45.9);
+assert.equal(normalizeReceiptItemPrice(200, "г", 98), 490);
+assert.equal(normalizeReceiptItemPrice(2, "шт", 30), 15);
+assert.equal(normalizeReceiptItemPrice(0, "г", 45), null);
+assert.equal(normalizeReceiptItemPrice(100, "г", null), null);
+
+const testStores = [
+  { id: "silpo", name: "Сільпо" },
+  { id: "atb", name: "АТБ" },
+];
+const testStoreProducts = [
+  { store_id: "silpo", product_id: "butter", price: 480 },
+  { store_id: "atb", product_id: "butter", price: 420 },
+  { store_id: "silpo", product_id: "eggs", price: 70 },
+];
+const testReceipts = [
+  { id: "r1", store_id: "silpo", purchased_at: "2026-11-01", total: 100 },
+  { id: "r2", store_id: "silpo", purchased_at: "2026-11-10", total: 150 },
+];
+const testReceiptItems = [
+  { id: "ri1", receipt_id: "r1", product_id: "butter", raw_name: "Масло", quantity: 200, unit: "г", price: 96 },
+  { id: "ri2", receipt_id: "r2", product_id: "butter", raw_name: "Масло", quantity: 200, unit: "г", price: 98 },
+];
+
+const priceIdx = new StorePriceIndex(testStores, testReceipts, testReceiptItems, testStoreProducts);
+// r2 свіжіший за r1 і перевизначає store_products: 98 грн за 200 г = 490 грн/кг
+assert.equal(priceIdx.getPrice("silpo", "butter"), 490);
+// в АТБ чеків немає — береться зі store_products: 420 грн/кг
+assert.equal(priceIdx.getPrice("atb", "butter"), 420);
+// яйця в Сільпо тільки в store_products: 70
+assert.equal(priceIdx.getPrice("silpo", "eggs"), 70);
+
+// орієнтовна ціна позиції списку
+assert.equal(calculateItemEstimatedPrice(200, "г", 490), 98);
+assert.equal(calculateItemEstimatedPrice(10, "шт", 7.2), 72);
+assert.equal(calculateItemEstimatedPrice(null, "г", 490), null);
+
+// підказка економії: масло в Сільпо (98), а в АТБ (84) -> економія 14 грн
+const shoppingItems = [
+  {
+    id: "item1",
+    title: "Масло",
+    quantity: 200,
+    unit: "г",
+    store_id: "silpo",
+    checked: false,
+    stocked_at: null,
+    product_id: "butter",
+    products: { name: "Масло вершкове", category: "молочне" },
+  },
+];
+const savings = findStoreSavingsRecommendation(shoppingItems, testStores, priceIdx);
+assert.ok(savings);
+assert.equal(savings?.targetStoreId, "atb");
+assert.equal(savings?.savingAmount, 14);
+assert.deepEqual(savings?.itemIds, ["item1"]);
+
+// порівняння цін: «Де що дешевше» тільки за позиціями чеків
+const comparison = buildPriceComparisonTable(
+  testStores,
+  testReceipts,
+  testReceiptItems,
+  [{ id: "butter", name: "Масло", unit: "г" }],
+);
+assert.equal(comparison.hasReceipts, true);
+assert.equal(comparison.rows.length, 1);
+assert.equal(comparison.rows[0].pricesByStore[0].price, 490);
+
+// без чеків — порожній стан
+assert.equal(buildPriceComparisonTable(testStores, [], [], []).hasReceipts, false);
+
+// витрати по магазинах за місяць
+const novReceipts = [
+  { id: "r1", store_id: "silpo", purchased_at: "2026-11-02", total: 400 },
+  { id: "r2", store_id: "silpo", purchased_at: "2026-11-08", total: 600 },
+  { id: "r3", store_id: "atb", purchased_at: "2026-11-05", total: 300 },
+  { id: "r-oct", store_id: "atb", purchased_at: "2026-10-25", total: 500 }, // минулий місяць — не входить
+];
+const monthly = buildMonthlyStoreSummaries(testStores, novReceipts, [], new Date("2026-11-12T12:00:00Z"));
+assert.equal(monthly.length, 2);
+assert.equal(monthly[0].storeName, "Сільпо");
+assert.equal(monthly[0].receiptsCount, 2);
+assert.equal(monthly[0].totalSum, 1000);
+assert.equal(monthly[0].averageCheck, 500);
+assert.equal(monthly[1].storeName, "АТБ");
+assert.equal(monthly[1].receiptsCount, 1);
+assert.equal(monthly[1].totalSum, 300);
+
+// плюралізація чеків і позицій
+assert.equal(pluralizeChecks(1), "1 чек");
+assert.equal(pluralizeChecks(2), "2 чеки");
+assert.equal(pluralizeChecks(5), "5 чеків");
+assert.equal(pluralizeChecks(14), "14 чеків");
+assert.equal(pluralizeChecks(21), "21 чек");
+assert.equal(pluralizePricePositions(1), "1 позиція");
+assert.equal(pluralizePricePositions(3), "3 позиції");
+assert.equal(pluralizePricePositions(10), "10 позицій");
+
+// фінанси: 7 460 ₴ за 12 днів листопада з бюджету 18 000 ₴ → прогноз 18 650 ₴
+assert.equal(FORECAST_MIN_ELAPSED_DAYS, 3);
+assert.equal(monthForecast(7460, 12, 30), 18650);
+assert.equal(monthForecast(100, 2, 30), null);
+assert.equal(monthForecast(30, 3, 30), 300);
+assert.equal(monthForecast(0, 12, 30), null);
+assert.equal(budgetRemaining(7460, 18000), 10540);
+assert.equal(formatShare(7460 / 18000), "41%");
+assert.equal(formatShare(12 / 30), "40%");
+assert.equal(pace(7460, 18000, 12, 30)?.spentShare, 7460 / 18000);
+assert.equal(pace(0, 18000, 12, 30), null);
+assert.equal(pace(100, null, 12, 30), null);
+assert.equal(formatUah(7460).replace(/\s/g, " "), "7 460 ₴");
+assert.equal(formatUah(1284.5).replace(/\s/g, " "), "1 284,50 ₴");
+assert.equal(formatUah(-650).replace(/\s/g, " "), "−650 ₴");
+assert.equal(daysInMonth("2026-11-12"), 30);
+assert.equal(daysInYear("2024-01-01"), 366);
+assert.equal(daysInYear("2026-01-01"), 365);
+assert.equal(readBudget(null), null);
+assert.equal(readBudget(0), null);
+assert.equal(readBudget("18000.00"), 18000);
+assert.equal(parseMoney("1 284,50"), 1284.5);
+assert.equal(parseMoney("12."), 12);
+assert.equal(parseMoney("-1"), null);
+assert.equal(parsePeriod("week", "2026-11-12", "2026-11-01").anchor, weekStart("2026-11-12"));
+assert.equal(parsePeriod("nope", undefined, "2026-11-12").anchor, "2026-11-01");
+assert.equal(shiftAnchor("month", "2026-12-01", 1), "2027-01-01");
+assert.equal(shiftAnchor("week", "2026-11-09", 1), "2026-11-16");
+assert.equal(monthTitle("2026-11-01"), "Листопад 2026");
+assert.equal(periodTitle("year", "2026-01-01"), "2026");
+
+const november = { start: "2026-11-01", end: "2026-11-30" };
+const financeRows = [{ id: "nov", purchasedAt: "2026-11-12", amount: 7460, storeName: "Сільпо" }];
+const novemberSummary = summarizePeriod("month", "2026-11-01", "2026-11-12", 18000, financeRows);
+assert.equal(novemberSummary.spent, 7460);
+assert.equal(novemberSummary.remaining, 10540);
+assert.equal(novemberSummary.perDay, 585.56);
+assert.equal(novemberSummary.forecast.status, "value");
+if (novemberSummary.forecast.status === "value") assert.equal(novemberSummary.forecast.amount, 18650);
+assert.equal(novemberSummary.pace && Math.round(novemberSummary.pace.spentShare * 100), 41);
+assert.equal(novemberSummary.pace && Math.round(novemberSummary.pace.elapsedShare * 100), 40);
+
+const earlyRows = [{ id: "early", purchasedAt: "2026-11-01", amount: 100, storeName: "АТБ" }];
+assert.equal(summarizePeriod("month", "2026-11-01", "2026-11-02", 18000, earlyRows).forecast.status, "too-early");
+assert.equal(forecastState(financeRows, november, "2026-11-12", null).status, "no-budget");
+assert.equal(forecastState([], november, "2026-11-12", 18000).status, "no-receipts");
+assert.equal(forecastState(financeRows, { start: "2026-10-01", end: "2026-10-31" }, "2026-11-12", 18000).status, "outside");
+
+const emptyMonth = summarizePeriod("month", "2026-11-01", "2026-11-12", 18000, []);
+assert.equal(emptyMonth.spent, 0);
+assert.equal(emptyMonth.average, null);
+assert.equal(emptyMonth.pace, null);
+assert.equal(emptyMonth.remaining, 18000);
+assert.equal(emptyMonth.forecast.status, "no-receipts");
+
+const financeWeek = summarizePeriod("week", "2026-11-09", "2026-11-12", 18000, financeRows);
+assert.equal(financeWeek.basis, 4200);
+assert.equal(financeWeek.remaining, -3260);
+assert.equal(financeWeek.forecast.status, "value");
+assert.equal(summarizePeriod("year", "2026-01-01", "2026-11-12", 18000, financeRows).basis, 216000);
+
+assert.deepEqual(
+  totalsByMonth(
+    [
+      { purchasedAt: "2026-10-02", amount: 10 },
+      { purchasedAt: "2026-11-02", amount: 5 },
+      { purchasedAt: "2026-11-03", amount: 7 },
+    ],
+    ["2026-10-01", "2026-11-01"],
+  ),
+  [10, 12],
+);
+assert.deepEqual(totalsByWeek([{ purchasedAt: "2026-11-12", amount: 4 }], ["2026-11-09"]), [4]);
+
+function financeLine(partial: Partial<DatedLine> & Pick<DatedLine, "purchasedAt" | "price">): DatedLine {
+  return {
+    id: partial.id ?? "line",
+    productId: partial.productId ?? null,
+    productName: partial.productName ?? null,
+    category: partial.category ?? null,
+    rawName: partial.rawName ?? "сире",
+    quantity: partial.quantity ?? 1,
+    unit: partial.unit ?? "шт",
+    price: partial.price,
+    purchasedAt: partial.purchasedAt,
+  };
+}
+
+assert.deepEqual(
+  categoryTotals(
+    [
+      financeLine({ purchasedAt: "2026-11-02", productId: "meat", category: "м'ясо", price: 100, productName: "Філе" }),
+      financeLine({ purchasedAt: "2026-11-03", price: 40 }),
+      financeLine({ purchasedAt: "2026-10-01", productId: "meat", category: "м'ясо", price: 999 }),
+      financeLine({ purchasedAt: "2026-11-04", productId: "misc", category: "інше", price: 15 }),
+    ],
+    november,
+  ).map((row) => [row.name, row.total]),
+  [
+    ["М'ясо", 100],
+    ["Інше", 55],
+  ],
+);
+
+const financeStores = storeTotals(
+  [
+    { purchasedAt: "2026-11-01", amount: 70, storeName: "Сільпо" },
+    { purchasedAt: "2026-11-02", amount: 30, storeName: "АТБ" },
+    { purchasedAt: "2026-10-02", amount: 500, storeName: "Сільпо" },
+    { purchasedAt: "2026-11-03", amount: 10, storeName: "  " },
+  ],
+  november,
+);
+assert.deepEqual(
+  financeStores.map((row) => [row.name, row.total]),
+  [
+    ["Сільпо", 70],
+    ["АТБ", 30],
+    ["Без магазину", 10],
+  ],
+);
+assert.equal(storeTotals(
+  [
+    { purchasedAt: "2026-11-01", amount: 70, storeName: "Сільпо" },
+    { purchasedAt: "2026-11-02", amount: 30, storeName: "АТБ" },
+  ],
+  november,
+)[0].share, 0.7);
+
+const financePrices = priceChanges(
+  [
+    financeLine({ id: "1", purchasedAt: "2026-11-01", productId: "butter", productName: "Масло", price: 100, quantity: 1, unit: "шт" }),
+    financeLine({ id: "2", purchasedAt: "2026-11-20", productId: "butter", productName: "Масло", price: 112, quantity: 1, unit: "шт" }),
+    financeLine({ id: "3", purchasedAt: "2026-11-05", productId: "bread", productName: "Хліб", price: 20, quantity: 1 }),
+    financeLine({ id: "4", purchasedAt: "2026-11-08", productId: "mix", productName: "Молоко", price: 40, quantity: 1, unit: "л" }),
+    financeLine({ id: "5", purchasedAt: "2026-11-18", productId: "mix", productName: "Молоко", price: 50, quantity: 1, unit: "шт" }),
+  ],
+  november,
+);
+assert.equal(financePrices.length, 1);
+assert.equal(financePrices[0].productId, "butter");
+assert.equal(Math.round(financePrices[0].change * 100), 12);
+assert.equal(amountOf({ total: null, items: [{ price: 10 }, { price: 2.5 }] }), 12.5);
+assert.equal(amountOf({ total: 0, items: [{ price: 10 }] }), 0);
+assert.equal(averageReceipt(
+  [
+    { purchasedAt: "2026-11-01", amount: 10 },
+    { purchasedAt: "2026-11-02", amount: 20 },
+    { purchasedAt: "2026-10-01", amount: 99 },
+  ],
+  november,
+), 15);
+
 // ---------- Склад (pantry) ----------
 // відмінювання
 assert.equal(pluralizePositions(0), "0 позицій");
@@ -503,6 +803,71 @@ assert.equal(formattedMoves[1].sign, "−");
 assert.equal(formattedMoves[2].title, "Інвентаризація");
 assert.equal(formattedMoves[2].sign, "=");
 assert.equal(formattedMoves[3].sign, "+");
+
+// Сім'я: логіка підписів, віку, порцій, бюджету та обмежень
+assert.equal(familyCountTitle(0), "Поки нікого");
+assert.equal(familyCountTitle(1), "Нас один");
+assert.equal(familyCountTitle(2), "Нас двоє");
+assert.equal(familyCountTitle(3), "Нас троє");
+assert.equal(familyCountTitle(4), "Нас четверо");
+assert.equal(familyCountTitle(5), "Нас п'ятеро");
+assert.equal(familyCountTitle(8), "Нас 8");
+
+assert.equal(pluralYears(1), "рік");
+assert.equal(pluralYears(2), "роки");
+assert.equal(pluralYears(4), "роки");
+assert.equal(pluralYears(5), "років");
+assert.equal(pluralYears(12), "років");
+assert.equal(pluralYears(21), "рік");
+
+const refDate = new Date("2026-11-12T12:00:00Z");
+assert.equal(formatMemberRole({ kind: "adult", notes: "дорослий" }, refDate), "дорослий");
+assert.equal(formatMemberRole({ kind: "adult", notes: "доросла" }, refDate), "доросла");
+assert.equal(formatMemberRole({ kind: "child", birth_date: "2014-06-01" }, refDate), "12 років");
+assert.equal(formatMemberRole({ kind: "child", birth_date: "2020-03-10" }, refDate), "6 років");
+assert.equal(formatMemberRole({ kind: "child" }, refDate), "дитина");
+
+assert.equal(formatPortionFactor(1), "1,0");
+assert.equal(formatPortionFactor(0.8), "0,8");
+assert.equal(formatPortionFactor(0.7), "0,7");
+
+assert.equal(calculatePortionWidthPercent(1.0), 100);
+assert.equal(calculatePortionWidthPercent(0.8), 80);
+assert.equal(calculatePortionWidthPercent(0.7), 70);
+assert.equal(calculatePortionWidthPercent(1.5), 100);
+assert.equal(calculatePortionWidthPercent(0), 0);
+
+assert.equal(stepPortionFactor(1.0, "inc"), 1.1);
+assert.equal(stepPortionFactor(1.0, "dec"), 0.9);
+assert.equal(stepPortionFactor(0.8, "inc"), 0.9);
+assert.equal(stepPortionFactor(0.1, "dec"), 0.1); // min clamp
+assert.equal(stepPortionFactor(3.0, "inc"), 3.0); // max clamp
+
+assert.equal(formatPortionsLabel(1), "1 порція");
+assert.equal(formatPortionsLabel(2), "2 порції");
+assert.equal(formatPortionsLabel(3.5), "3,5 порції");
+assert.equal(formatPortionsLabel(4), "4 порції");
+assert.equal(formatPortionsLabel(5), "5 порцій");
+assert.equal(formatPortionsLabel(0), "0 порцій");
+
+assert.equal(dailyBudgetUah(18000), 600);
+assert.equal(dailyBudgetUah(15000), 500);
+assert.equal(dailyBudgetUah(0), null);
+assert.equal(dailyBudgetUah(null), null);
+
+assert.equal(isAllergy("Алергія: горіхи"), true);
+assert.equal(isAllergy("алергія на лактозу"), true);
+assert.equal(isAllergy("Nut allergy"), true);
+assert.equal(isAllergy("Любить гостре"), false);
+assert.equal(isAllergy("Менше смаженого"), false);
+
+assert.deepEqual(parseRestrictions("Алергія: горіхи, Менше смаженого, Любить гостре"), [
+  "Алергія: горіхи",
+  "Менше смаженого",
+  "Любить гостре",
+]);
+assert.deepEqual(parseRestrictions(["Без грибів", "Вегетаріанець"]), ["Без грибів", "Вегетаріанець"]);
+assert.deepEqual(parseRestrictions(""), []);
 
 console.log(`ok: логіка і стартові дані (${SEED_PRODUCTS.length} продуктів, ${SEED_RECIPES.length} рецептів)`);
 
