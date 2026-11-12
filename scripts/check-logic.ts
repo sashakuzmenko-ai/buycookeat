@@ -16,6 +16,16 @@ import {
   recipeReturnPath,
   scaledNeed,
 } from "../src/lib/recipes.ts";
+import {
+  StorePriceIndex,
+  buildMonthlyStoreSummaries,
+  buildPriceComparisonTable,
+  calculateItemEstimatedPrice,
+  findStoreSavingsRecommendation,
+  normalizeReceiptItemPrice,
+  pluralizeChecks,
+  pluralizePositions as pluralizePricePositions,
+} from "../src/lib/prices.ts";
 import { addDays, weekDays, weekStart } from "../src/lib/dates.ts";
 import {
   FORECAST_MIN_ELAPSED_DAYS,
@@ -380,6 +390,105 @@ assert.equal(recipeReturnPath("/recipes", "/menu"), "/recipes");
 assert.equal(recipeReturnPath("/recipes/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", "/menu"), "/recipes/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
 assert.equal(recipeReturnPath("https://evil.test/recipes", "/menu"), "/menu");
 assert.equal(recipeReturnPath("/recipes/not-an-id", "/menu"), "/menu");
+
+// ціни: нормалізація, індекс із чеками і store_products, орієнтовна вартість
+assert.equal(normalizeReceiptItemPrice(1000, "г", 45.9), 45.9);
+assert.equal(normalizeReceiptItemPrice(200, "г", 98), 490);
+assert.equal(normalizeReceiptItemPrice(2, "шт", 30), 15);
+assert.equal(normalizeReceiptItemPrice(0, "г", 45), null);
+assert.equal(normalizeReceiptItemPrice(100, "г", null), null);
+
+const testStores = [
+  { id: "silpo", name: "Сільпо" },
+  { id: "atb", name: "АТБ" },
+];
+const testStoreProducts = [
+  { store_id: "silpo", product_id: "butter", price: 480 },
+  { store_id: "atb", product_id: "butter", price: 420 },
+  { store_id: "silpo", product_id: "eggs", price: 70 },
+];
+const testReceipts = [
+  { id: "r1", store_id: "silpo", purchased_at: "2026-11-01", total: 100 },
+  { id: "r2", store_id: "silpo", purchased_at: "2026-11-10", total: 150 },
+];
+const testReceiptItems = [
+  { id: "ri1", receipt_id: "r1", product_id: "butter", raw_name: "Масло", quantity: 200, unit: "г", price: 96 },
+  { id: "ri2", receipt_id: "r2", product_id: "butter", raw_name: "Масло", quantity: 200, unit: "г", price: 98 },
+];
+
+const priceIdx = new StorePriceIndex(testStores, testReceipts, testReceiptItems, testStoreProducts);
+// r2 свіжіший за r1 і перевизначає store_products: 98 грн за 200 г = 490 грн/кг
+assert.equal(priceIdx.getPrice("silpo", "butter"), 490);
+// в АТБ чеків немає — береться зі store_products: 420 грн/кг
+assert.equal(priceIdx.getPrice("atb", "butter"), 420);
+// яйця в Сільпо тільки в store_products: 70
+assert.equal(priceIdx.getPrice("silpo", "eggs"), 70);
+
+// орієнтовна ціна позиції списку
+assert.equal(calculateItemEstimatedPrice(200, "г", 490), 98);
+assert.equal(calculateItemEstimatedPrice(10, "шт", 7.2), 72);
+assert.equal(calculateItemEstimatedPrice(null, "г", 490), null);
+
+// підказка економії: масло в Сільпо (98), а в АТБ (84) -> економія 14 грн
+const shoppingItems = [
+  {
+    id: "item1",
+    title: "Масло",
+    quantity: 200,
+    unit: "г",
+    store_id: "silpo",
+    checked: false,
+    stocked_at: null,
+    product_id: "butter",
+    products: { name: "Масло вершкове", category: "молочне" },
+  },
+];
+const savings = findStoreSavingsRecommendation(shoppingItems, testStores, priceIdx);
+assert.ok(savings);
+assert.equal(savings?.targetStoreId, "atb");
+assert.equal(savings?.savingAmount, 14);
+assert.deepEqual(savings?.itemIds, ["item1"]);
+
+// порівняння цін: «Де що дешевше» тільки за позиціями чеків
+const comparison = buildPriceComparisonTable(
+  testStores,
+  testReceipts,
+  testReceiptItems,
+  [{ id: "butter", name: "Масло", unit: "г" }],
+);
+assert.equal(comparison.hasReceipts, true);
+assert.equal(comparison.rows.length, 1);
+assert.equal(comparison.rows[0].pricesByStore[0].price, 490);
+
+// без чеків — порожній стан
+assert.equal(buildPriceComparisonTable(testStores, [], [], []).hasReceipts, false);
+
+// витрати по магазинах за місяць
+const novReceipts = [
+  { id: "r1", store_id: "silpo", purchased_at: "2026-11-02", total: 400 },
+  { id: "r2", store_id: "silpo", purchased_at: "2026-11-08", total: 600 },
+  { id: "r3", store_id: "atb", purchased_at: "2026-11-05", total: 300 },
+  { id: "r-oct", store_id: "atb", purchased_at: "2026-10-25", total: 500 }, // минулий місяць — не входить
+];
+const monthly = buildMonthlyStoreSummaries(testStores, novReceipts, [], new Date("2026-11-12T12:00:00Z"));
+assert.equal(monthly.length, 2);
+assert.equal(monthly[0].storeName, "Сільпо");
+assert.equal(monthly[0].receiptsCount, 2);
+assert.equal(monthly[0].totalSum, 1000);
+assert.equal(monthly[0].averageCheck, 500);
+assert.equal(monthly[1].storeName, "АТБ");
+assert.equal(monthly[1].receiptsCount, 1);
+assert.equal(monthly[1].totalSum, 300);
+
+// плюралізація чеків і позицій
+assert.equal(pluralizeChecks(1), "1 чек");
+assert.equal(pluralizeChecks(2), "2 чеки");
+assert.equal(pluralizeChecks(5), "5 чеків");
+assert.equal(pluralizeChecks(14), "14 чеків");
+assert.equal(pluralizeChecks(21), "21 чек");
+assert.equal(pluralizePricePositions(1), "1 позиція");
+assert.equal(pluralizePricePositions(3), "3 позиції");
+assert.equal(pluralizePricePositions(10), "10 позицій");
 
 // фінанси: 7 460 ₴ за 12 днів листопада з бюджету 18 000 ₴ → прогноз 18 650 ₴
 assert.equal(FORECAST_MIN_ELAPSED_DAYS, 3);
