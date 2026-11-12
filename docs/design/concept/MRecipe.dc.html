@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Cook & Eat — рецепт, телефон</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#B23A24}a:hover{color:#14201A}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; font-family: 'Onest', system-ui, sans-serif; color: #14201A; background: #FFFFFF">
+
+  <div style="box-sizing: border-box; padding: 56px 20px 24px; background: #FBE6E0; display: flex; flex-direction: column; gap: 16px">
+    <div style="display: flex; justify-content: space-between; align-items: center">
+      <a href="MHome.dc.html" aria-label="Назад" style="width: 44px; height: 44px; border-radius: 14px; background: #FFFFFF; color: #14201A; display: flex; align-items: center; justify-content: center; font-size: 18px; text-decoration: none">←</a>
+      <span style="font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #8C2A18">Рецепт · обід</span>
+      <button type="button" aria-label="Редагувати рецепт" style="width: 44px; height: 44px; border: 0; border-radius: 14px; background: #FFFFFF; display: flex; align-items: center; justify-content: center">
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#14201A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16zM13 7l4 4"></path></svg>
+      </button>
+    </div>
+    <h1 style="margin: 0; font-family: 'Unbounded', 'Onest', sans-serif; font-weight: 700; font-size: 30px; line-height: 1.1">Борщ із пампушками</h1>
+    <div style="display: flex; gap: 20px">
+      <div><div style="font-family: 'Unbounded', 'Onest', sans-serif; font-weight: 500; font-size: 17px">60 хв</div><div style="font-size: 12px; color: #8C2A18">готування</div></div>
+      <div><div style="font-family: 'Unbounded', 'Onest', sans-serif; font-weight: 500; font-size: 17px">3,5 × 2</div><div style="font-size: 12px; color: #8C2A18">порції, на два дні</div></div>
+      <div><div style="font-family: 'Unbounded', 'Onest', sans-serif; font-weight: 500; font-size: 17px">≈ 31 ₴</div><div style="font-size: 12px; color: #8C2A18">за порцію</div></div>
+    </div>
+  </div>
+
+  <div style="flex-grow: 1; box-sizing: border-box; padding: 20px 20px 0; display: flex; flex-direction: column; gap: 14px; overflow: hidden">
+    <div style="display: flex; gap: 8px">
+      <button type="button" aria-pressed="true" style="height: 44px; padding: 0 16px; border: 0; border-radius: 999px; background: #B23A24; color: #FFFFFF; font: 600 14px 'Onest', sans-serif">Продукти · 9</button>
+      <button type="button" aria-pressed="false" style="height: 44px; padding: 0 16px; border: 1px solid #C5CEC6; border-radius: 999px; background: #FFFFFF; color: #14201A; font: 600 14px 'Onest', sans-serif">Кроки · 6</button>
+      <button type="button" aria-pressed="false" style="height: 44px; padding: 0 16px; border: 1px solid #C5CEC6; border-radius: 999px; background: #FFFFFF; color: #14201A; font: 600 14px 'Onest', sans-serif">Техніка</button>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px; background: #DDEFEE; font-size: 14px; color: #124E51">
+      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#19676B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"></path></svg>
+      <span><span style="font-weight: 700">Усе є на складі.</span> Після готування спишеться автоматично.</span>
+    </div>
+
+    <div style="display: flex; flex-direction: column">
+      <sc-for list="{{ing}}" as="i" hint-placeholder-count="7">
+        <div style="display: flex; align-items: center; gap: 10px; min-height: 44px; border-bottom: 1px solid #EEF1ED; font-size: 15px">
+          <span style="flex-grow: 1">{{i.name}}</span>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 600">{{i.need}}</span>
+          <span style="width: 92px; text-align: right; font-size: 12px; color: #4A5750">{{i.have}}</span>
+        </div>
+      </sc-for>
+      <div style="padding-top: 10px; font-size: 13px; color: #4A5750">Ще 2 продукти: сіль, лавровий лист</div>
+    </div>
+  </div>
+
+  <div style="box-sizing: border-box; padding: 12px 20px 28px; background: #FFFFFF; border-top: 1px solid #DDE3DC; display: flex; flex-direction: column; gap: 8px">
+    <button type="button" style="height: 52px; border: 0; border-radius: 16px; background: #14201A; color: #FFFFFF; font: 600 16px 'Onest', sans-serif">Готувати — списати зі складу</button>
+    <div style="text-align: center; font-size: 12px; color: #4A5750">Кількості вже перераховано на вашу сім’ю</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const ing = [
+      { name: "Буряк", need: "400 г", have: "є 1,2 кг" },
+      { name: "Картопля", need: "500 г", have: "є 3,5 кг" },
+      { name: "Капуста білокачанна", need: "300 г", have: "є 1 кг" },
+      { name: "Свинина на кістці", need: "600 г", have: "є 700 г" },
+      { name: "Морква", need: "150 г", have: "є 400 г" },
+      { name: "Томатна паста", need: "60 г", have: "є 200 г" },
+      { name: "Цибуля", need: "1 шт", have: "є 1 шт · остання" }
+    ];
+    return { ing };
+  }
+}
+</script>
+</body>
+</html>

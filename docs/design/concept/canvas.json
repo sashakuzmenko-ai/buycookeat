@@ -1,0 +1,40 @@
+{
+  "v": 3,
+  "createdOnFiles": {"v": 1, "at": "2026-11-12T12:00:00Z"},
+  "title": "Cook & Eat — дизайн-концепт і бренд",
+  "launch": {"view": "canvas"},
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {"x": 0, "y": 0, "w": 1440, "h": 900, "title": "Бренд"},
+    "System.dc.html": {"x": 1520, "y": 0, "w": 1440, "h": 900, "title": "Система: модулі, навігація, скан"},
+    "WebHome.dc.html": {"x": 0, "y": 1500, "w": 1440, "h": 1100, "title": "Web · Огляд", "expand": "fill"},
+    "WebMenu.dc.html": {"x": 1520, "y": 1500, "w": 1440, "h": 1100, "title": "Web · Меню", "expand": "fill"},
+    "WebPantry.dc.html": {"x": 3040, "y": 1500, "w": 1440, "h": 1100, "title": "Web · Склад", "expand": "fill"},
+    "WebFinance.dc.html": {"x": 4560, "y": 1500, "w": 1440, "h": 1100, "title": "Web · Фінанси", "expand": "fill"},
+    "WebRecipes.dc.html": {"x": 6080, "y": 1500, "w": 1440, "h": 1100, "title": "Web · Рецепти", "expand": "fill"},
+    "WebShops.dc.html": {"x": 7600, "y": 1500, "w": 1440, "h": 1100, "title": "Web · Магазини", "expand": "fill"},
+    "WebFamily.dc.html": {"x": 9120, "y": 1500, "w": 1440, "h": 1100, "title": "Web · Сім’я", "expand": "fill"},
+    "WebScan.dc.html": {"x": 10640, "y": 1500, "w": 1440, "h": 1100, "title": "Web · Скан", "expand": "fill"},
+    "MMenu.dc.html": {"x": 3290, "y": 3200, "w": 390, "h": 844, "title": "Mobile · Меню", "radius": 32},
+    "MPantry.dc.html": {"x": 3760, "y": 3200, "w": 390, "h": 844, "title": "Mobile · Склад", "radius": 32},
+    "MHome.dc.html": {"x": 0, "y": 3200, "w": 390, "h": 844, "title": "Mobile · Огляд", "radius": 32},
+    "MRecipe.dc.html": {"x": 470, "y": 3200, "w": 390, "h": 844, "title": "Mobile · Рецепт", "radius": 32},
+    "MShops.dc.html": {"x": 940, "y": 3200, "w": 390, "h": 844, "title": "Mobile · Магазини", "radius": 32},
+    "MFamily.dc.html": {"x": 1410, "y": 3200, "w": 390, "h": 844, "title": "Mobile · Сім’я", "radius": 32},
+    "MFinance.dc.html": {"x": 1880, "y": 3200, "w": 390, "h": 844, "title": "Mobile · Фінанси", "radius": 32},
+    "MScan.dc.html": {"x": 2350, "y": 3200, "w": 390, "h": 844, "title": "Mobile · Скан: перевірка", "radius": 32},
+    "MTelegram.dc.html": {"x": 2820, "y": 3200, "w": 390, "h": 844, "title": "Telegram · бот", "radius": 32}
+  },
+  "order": [
+    "Main.dc.html", "System.dc.html",
+    "WebHome.dc.html", "WebMenu.dc.html", "WebPantry.dc.html", "WebFinance.dc.html",
+    "MHome.dc.html", "MRecipe.dc.html", "MShops.dc.html", "MFamily.dc.html", "MFinance.dc.html", "MScan.dc.html", "MTelegram.dc.html",
+    "WebRecipes.dc.html", "WebShops.dc.html", "WebFamily.dc.html", "WebScan.dc.html", "MMenu.dc.html", "MPantry.dc.html"
+  ],
+  "notes": {
+    "t-brand": {"x": 0, "y": -300, "text": "Бренд і система", "kind": "title1", "maxW": 2960},
+    "t-web": {"x": 0, "y": 1200, "text": "Web", "kind": "title1", "maxW": 12080},
+    "t-mobile": {"x": 0, "y": 2900, "text": "Mobile і Telegram", "kind": "title1", "maxW": 4150}
+  },
+  "designSystems": []
+}

@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Cook & Eat — сім’я, телефон</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#7A3E78}a:hover{color:#14201A}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; font-family: 'Onest', system-ui, sans-serif; color: #14201A; background: #F3F5F1">
+
+  <div style="flex-grow: 1; box-sizing: border-box; padding: 56px 20px 0; display: flex; flex-direction: column; gap: 14px; overflow: hidden">
+    <div style="display: flex; justify-content: space-between; align-items: flex-end">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <div style="font-size: 14px; font-weight: 600; color: #7A3E78">Сім’я</div>
+        <h1 style="margin: 0; font-family: 'Unbounded', 'Onest', sans-serif; font-weight: 700; font-size: 24px">Нас четверо</h1>
+      </div>
+      <button type="button" style="height: 44px; padding: 0 16px; border: 0; border-radius: 14px; background: #7A3E78; color: #FFFFFF; font: 600 14px 'Onest', sans-serif">Додати</button>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+      <sc-for list="{{people}}" as="p" hint-placeholder-count="4">
+        <div style="box-sizing: border-box; padding: 14px; border-radius: 20px; background: #FFFFFF; border: 1px solid #DDE3DC; display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; align-items: center; gap: 10px">
+            <div aria-hidden="true" style="width: 42px; height: 42px; border-radius: 999px; background: #F1E3F0; color: #7A3E78; display: flex; align-items: center; justify-content: center; font-family: 'Unbounded', 'Onest', sans-serif; font-weight: 700; font-size: 16px">{{p.initial}}</div>
+            <div><div style="font-size: 15px; font-weight: 700">{{p.name}}</div><div style="font-size: 12px; color: #4A5750">{{p.role}}</div></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 5px">
+            <div style="display: flex; justify-content: space-between; font-size: 12px; color: #4A5750"><span>Порція</span><span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #14201A">{{p.k}}</span></div>
+            <div style="height: 6px; border-radius: 999px; background: #F1E3F0"><div style="height: 6px; border-radius: 999px; background: #7A3E78; width: {{p.w}}"></div></div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-radius: 18px; background: #F1E3F0">
+      <span style="font-size: 14px; color: #5C2D5A">Разом на один прийом їжі</span>
+      <span style="font-family: 'Unbounded', 'Onest', sans-serif; font-weight: 700; font-size: 18px">3,5 порції</span>
+    </div>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 8px">
+      <span style="padding: 7px 12px; border-radius: 999px; background: #FFFFFF; border: 1px solid #DDE3DC; font-size: 13px">Соломія · алергія на горіхи</span>
+      <span style="padding: 7px 12px; border-radius: 999px; background: #FFFFFF; border: 1px solid #DDE3DC; font-size: 13px">Марко · без грибів</span>
+      <span style="padding: 7px 12px; border-radius: 999px; background: #FFFFFF; border: 1px solid #DDE3DC; font-size: 13px">Менше смаженого</span>
+    </div>
+
+    <section style="border-radius: 18px; background: #FFFFFF; border: 1px solid #DDE3DC; padding: 0 16px">
+      <sc-for list="{{rows}}" as="r" hint-placeholder-count="4">
+        <a href="#" style="display: flex; align-items: center; gap: 10px; min-height: 52px; border-bottom: 1px solid #EEF1ED; color: #14201A; text-decoration: none; font-size: 15px">
+          <span style="flex-grow: 1; font-weight: 600">{{r.name}}</span>
+          <span style="font-size: 14px; color: #4A5750">{{r.val}}</span>
+          <span aria-hidden="true" style="color: #4A5750">›</span>
+        </a>
+      </sc-for>
+    </section>
+  </div>
+
+  <nav aria-label="Нижня навігація" style="height: 84px; box-sizing: border-box; padding: 8px 12px 20px; background: #FFFFFF; border-top: 1px solid #DDE3DC; display: flex; justify-content: space-between; align-items: center">
+    <a href="MHome.dc.html" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; font-weight: 500; color: #4A5750; text-decoration: none">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4A5750" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9H4z"></path></svg>Огляд
+    </a>
+    <a href="MMenu.dc.html" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; font-weight: 500; color: #4A5750; text-decoration: none">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4A5750" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6h14v14H5zM5 10h14M9 3v4M15 3v4"></path></svg>Меню
+    </a>
+    <a href="MScan.dc.html" aria-label="Скан" style="width: 56px; height: 56px; border-radius: 18px; background: #14201A; display: flex; align-items: center; justify-content: center">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#C8F169" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5h3M17 5h3v3M20 16v3h-3M7 19H4v-3M8 12h8"></path></svg>
+    </a>
+    <a href="MPantry.dc.html" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; font-weight: 500; color: #4A5750; text-decoration: none">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4A5750" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v14H4zM4 12h16M9 8.5h6M9 15.5h6"></path></svg>Склад
+    </a>
+    <a href="MFamily.dc.html" aria-current="page" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; font-weight: 700; color: #14201A; text-decoration: none">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#14201A" stroke-width="2.6" stroke-linecap="round"><path d="M5 12h.01M12 12h.01M19 12h.01"></path></svg>Ще
+    </a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const people = [
+      { initial: "Т", name: "Тато", role: "дорослий", k: "1,0", w: "100%" },
+      { initial: "М", name: "Мама", role: "доросла", k: "1,0", w: "100%" },
+      { initial: "С", name: "Соломія", role: "12 років", k: "0,8", w: "80%" },
+      { initial: "М", name: "Марко", role: "6 років", k: "0,7", w: "70%" }
+    ];
+    const rows = [
+      { name: "Бюджет на місяць", val: "18 000 ₴" },
+      { name: "Техніка на кухні", val: "духовка, мультиварка" },
+      { name: "Наші магазини", val: "Сільпо, АТБ, ринок" },
+      { name: "Telegram-бот", val: "2 учасники" }
+    ];
+    return { people, rows };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Cook & Eat — склад, телефон</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#19676B}a:hover{color:#14201A}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; font-family: 'Onest', system-ui, sans-serif; color: #14201A; background: #F3F5F1">
+
+  <div style="flex-grow: 1; box-sizing: border-box; padding: 56px 20px 0; display: flex; flex-direction: column; gap: 12px; overflow: hidden">
+    <div style="display: flex; justify-content: space-between; align-items: flex-end">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <div style="font-size: 14px; font-weight: 600; color: #19676B">Склад</div>
+        <h1 style="margin: 0; font-family: 'Unbounded', 'Onest', sans-serif; font-weight: 700; font-size: 24px">64 позиції</h1>
+      </div>
+      <button type="button" aria-label="Пошук на складі" style="width: 44px; height: 44px; border: 1px solid #C5CEC6; border-radius: 14px; background: #FFFFFF; display: flex; align-items: center; justify-content: center">
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#14201A" stroke-width="2" stroke-linecap="round"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4"></path></svg>
+      </button>
+    </div>
+
+    <div style="display: flex; padding: 4px; border-radius: 16px; background: #DDEFEE">
+      <button type="button" aria-pressed="true" style="flex: 1.35 1 0; height: 44px; border: 0; border-radius: 12px; background: #19676B; color: #FFFFFF; white-space: nowrap; font: 600 12px 'Onest', sans-serif">Холодильник · 22</button>
+      <button type="button" aria-pressed="false" style="flex: 1 1 0; height: 44px; border: 0; border-radius: 12px; background: transparent; color: #124E51; white-space: nowrap; font: 600 12px 'Onest', sans-serif">Морозилка · 11</button>
+      <button type="button" aria-pressed="false" style="flex: 1 1 0; height: 44px; border: 0; border-radius: 12px; background: transparent; color: #124E51; white-space: nowrap; font: 600 12px 'Onest', sans-serif">Комора · 31</button>
+    </div>
+
+    <div style="display: flex; gap: 8px">
+      <button type="button" aria-pressed="false" style="height: 44px; padding: 0 14px; border: 1px solid #C5CEC6; border-radius: 999px; background: #FFFFFF; color: #14201A; font: 600 13px 'Onest', sans-serif">Мало · 3</button>
+      <button type="button" aria-pressed="false" style="height: 44px; padding: 0 14px; border: 1px solid #C5CEC6; border-radius: 999px; background: #FFFFFF; color: #14201A; font: 600 13px 'Onest', sans-serif">Термін до 3 днів · 3</button>
+    </div>
+
+    <section style="border-radius: 20px; background: #FFFFFF; border: 1px solid #DDE3DC; overflow: hidden">
+      <sc-for list="{{items}}" as="i" hint-placeholder-count="7">
+        <div style="padding: 10px 16px 12px; border-bottom: 3px solid #EEF1ED; display: flex; flex-direction: column; gap: 6px">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px">
+            <span style="font-size: 15px; font-weight: 600">{{i.name}}</span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 14px">{{i.qty}}</span>
+          </div>
+          <div style="height: 8px; border-radius: 999px; background: #E6EBE6"><div style="height: 8px; border-radius: 999px; width: {{i.w}}; background: {{i.c}}"></div></div>
+          <sc-if value="{{i.hasNote}}" hint-placeholder-val="{{false}}">
+            <div style="font-size: 12px; font-weight: 600; color: {{i.nc}}">{{i.note}}</div>
+          </sc-if>
+        </div>
+      </sc-for>
+      <a href="#" style="display: flex; align-items: center; min-height: 44px; padding: 0 16px; font-size: 14px; font-weight: 600">Ще 16 позицій</a>
+    </section>
+  </div>
+
+  <nav aria-label="Нижня навігація" style="height: 84px; box-sizing: border-box; padding: 8px 12px 20px; background: #FFFFFF; border-top: 1px solid #DDE3DC; display: flex; justify-content: space-between; align-items: center">
+    <a href="MHome.dc.html" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; font-weight: 500; color: #4A5750; text-decoration: none">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4A5750" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9H4z"></path></svg>Огляд
+    </a>
+    <a href="MMenu.dc.html" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; font-weight: 500; color: #4A5750; text-decoration: none">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4A5750" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6h14v14H5zM5 10h14M9 3v4M15 3v4"></path></svg>Меню
+    </a>
+    <a href="MScan.dc.html" aria-label="Скан: інвентаризація голосом або відео" style="width: 56px; height: 56px; border-radius: 18px; background: #14201A; display: flex; align-items: center; justify-content: center">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#C8F169" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5h3M17 5h3v3M20 16v3h-3M7 19H4v-3M8 12h8"></path></svg>
+    </a>
+    <a href="MPantry.dc.html" aria-current="page" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; font-weight: 700; color: #14201A; text-decoration: none">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#19676B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v14H4zM4 12h16M9 8.5h6M9 15.5h6"></path></svg>Склад
+    </a>
+    <a href="MFamily.dc.html" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; font-weight: 500; color: #4A5750; text-decoration: none">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4A5750" stroke-width="2.6" stroke-linecap="round"><path d="M5 12h.01M12 12h.01M19 12h.01"></path></svg>Ще
+    </a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    // [назва, кількість, рівень %, стан: "" | "low" | "exp", примітка]
+    const items = [
+      ["Куряче філе", "600 г", 60, "exp", "Термін до 13 листопада · у меню сьогодні"],
+      ["Сметана 20%", "350 г", 70, "exp", "Термін до 14 листопада"],
+      ["Йогурт натуральний", "2 шт", 50, "exp", "Термін до 14 листопада"],
+      ["Молоко 2,5%", "0,3 л", 14, "low", "Мало · у списку покупок"],
+      ["Яйця", "2 шт", 20, "low", "Мало · у списку покупок"],
+      ["Масло вершкове", "40 г", 10, "low", "Мало · у списку покупок"]
+    ].map((r) => ({
+      name: r[0], qty: r[1], w: r[2] + "%",
+      c: r[3] === "low" ? "#8A5600" : r[3] === "exp" ? "#B23A24" : "#19676B",
+      hasNote: !!r[4], note: r[4] || "", nc: r[3] === "exp" ? "#8C2A18" : "#6B4300"
+    }));
+    return { items };
+  }
+}
+</script>
+</body>
+</html>

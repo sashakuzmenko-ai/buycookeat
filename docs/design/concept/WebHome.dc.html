@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Cook & Eat — огляд</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1E6B45}a:hover{color:#14201A}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; min-height: 100vh; font-family: 'Onest', system-ui, sans-serif; color: #14201A; background: #F3F5F1">
+
+  <nav aria-label="Основна навігація" style="flex: 1 0 232px; box-sizing: border-box; padding: 24px 16px; background: #FFFFFF; border-right: 1px solid #DDE3DC; display: flex; flex-direction: column; gap: 24px">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 8px">
+      <svg aria-hidden="true" width="34" height="34" viewBox="0 0 48 48"><rect width="48" height="48" rx="14" fill="#1E6B45"></rect><path d="M33.9 14.1A14 14 0 1 0 33.9 33.9" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"></path><circle cx="35" cy="24" r="4.5" fill="#C8F169"></circle></svg>
+      <span style="font-family: 'Unbounded', 'Onest', sans-serif; font-weight: 700; font-size: 16px">Cook & Eat</span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 2px">
+      <sc-for list="{{nav}}" as="n" hint-placeholder-count="8">
+        <a href="{{n.href}}" aria-current="{{n.cur}}" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 12px; text-decoration: none; font-size: 15px; color: #14201A; font-weight: {{n.w}}; background: {{n.bg}}">
+          <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{n.ic}}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="{{n.d}}"></path></svg>
+          {{n.label}}
+        </a>
+      </sc-for>
+    </div>
+    <div style="margin-top: auto; box-sizing: border-box; padding: 16px; border-radius: 16px; background: #14201A; color: #FFFFFF; display: flex; flex-direction: column; gap: 8px">
+      <div style="font-size: 14px; font-weight: 600; color: #C8F169">Скан у Telegram</div>
+      <div style="font-size: 13px; line-height: 1.45; color: #D5DDD7">Надішліть боту чек, голосове чи відео холодильника.</div>
+    </div>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 32px; display: flex; flex-direction: column; gap: 24px">
+
+    <div style="display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: flex-end">
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <div style="font-size: 14px; color: #4A5750">Четвер, 12 листопада</div>
+        <h1 style="margin: 0; font-family: 'Unbounded', 'Onest', sans-serif; font-weight: 700; font-size: 28px; line-height: 1.15">Сьогодні вдома</h1>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 10px">
+        <a href="WebMenu.dc.html" style="display: inline-flex; align-items: center; height: 44px; padding: 0 18px; border: 1px solid #C5CEC6; border-radius: 12px; background: #FFFFFF; color: #14201A; font-weight: 600; font-size: 15px; text-decoration: none">Меню тижня</a>
+        <a href="WebShops.dc.html" style="display: inline-flex; align-items: center; height: 44px; padding: 0 18px; border-radius: 12px; background: #1E6B45; color: #FFFFFF; font-weight: 600; font-size: 15px; text-decoration: none">Список покупок · 14</a>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px">
+      <a href="WebFinance.dc.html" style="box-sizing: border-box; padding: 20px; border-radius: 18px; background: #E3E7F8; color: #14201A; text-decoration: none; display: flex; flex-direction: column; gap: 10px">
+        <div style="font-size: 13px; font-weight: 600; color: #26357D">Витрачено в листопаді</div>
+        <div style="font-family: 'Unbounded', 'Onest', sans-serif; font-weight: 700; font-size: 26px">7 460 ₴</div>
+        <div style="height: 8px; border-radius: 999px; background: #FFFFFF"><div style="width: 41%; height: 8px; border-radius: 999px; background: #3346A0"></div></div>
+        <div style="font-size: 13px; color: #26357D">з 18 000 ₴ · на 260 ₴ вище темпу</div>
+      </a>
+      <a href="WebPantry.dc.html" style="box-sizing: border-box; padding: 20px; border-radius: 18px; background: #DDEFEE; color: #14201A; text-decoration: none; display: flex; flex-direction: column; gap: 10px">
+        <div style="font-size: 13px; font-weight: 600; color: #124E51">На складі</div>
+        <div style="font-family: 'Unbounded', 'Onest', sans-serif; font-weight: 700; font-size: 26px">64 позиції</div>
+        <div style="font-size: 13px; color: #124E51; margin-top: auto">5 закінчуються · 3 з терміном до 3 днів</div>
+      </a>
+      <a href="WebMenu.dc.html" style="box-sizing: border-box; padding: 20px; border-radius: 18px; background: #E3F1E8; color: #14201A; text-decoration: none; display: flex; flex-direction: column; gap: 10px">
+        <div style="font-size: 13px; font-weight: 600; color: #14522F">Меню тижня</div>
+        <div style="font-family: 'Unbounded', 'Onest', sans-serif; font-weight: 700; font-size: 26px">10 з 20</div>
+        <div style="font-size: 13px; color: #14522F; margin-top: auto">страв приготовано · 1 слот порожній</div>
+      </a>
+      <a href="WebShops.dc.html" style="box-sizing: border-box; padding: 20px; border-radius: 18px; background: #FBEFD2; color: #14201A; text-decoration: none; display: flex; flex-direction: column; gap: 10px">
+        <div style="font-size: 13px; font-weight: 600; color: #6B4300">Докупити до неділі</div>
+        <div style="font-family: 'Unbounded', 'Onest', sans-serif; font-weight: 700; font-size: 26px">≈ 1 260 ₴</div>
+        <div style="font-size: 13px; color: #6B4300; margin-top: auto">14 позицій · Сільпо та ринок</div>
+      </a>
+    </div>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+
+      <div style="flex: 2 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 24px">
+        <section style="box-sizing: border-box; padding: 24px; border-radius: 18px; background: #FFFFFF; border: 1px solid #DDE3DC; display: flex; flex-direction: column; gap: 16px">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px">
+            <h2 style="margin: 0; font-size: 18px; font-weight: 700">Сьогодні в меню</h2>
+            <span style="font-size: 13px; color: #4A5750">на 3,5 порції</span>
+          </div>
+          <sc-for list="{{meals}}" as="m" hint-placeholder-count="3">
+            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 14px; border-radius: 14px; background: #F3F5F1">
+              <div style="width: 76px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #4A5750">{{m.slot}}</div>
+              <div style="flex: 1 1 200px; min-width: 0">
+                <div style="font-size: 16px; font-weight: 600">{{m.dish}}</div>
+                <div style="font-size: 13px; color: #4A5750">{{m.meta}}</div>
+              </div>
+              <span style="padding: 5px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; background: {{m.cbg}}; color: {{m.cfg}}">{{m.chip}}</span>
+              <sc-if value="{{m.todo}}" hint-placeholder-val="{{true}}">
+                <button type="button" style="height: 44px; padding: 0 16px; border: 0; border-radius: 12px; background: #1E6B45; color: #FFFFFF; font: 600 14px 'Onest', sans-serif">Готувати</button>
+              </sc-if>
+            </div>
+          </sc-for>
+        </section>
+
+        <section style="box-sizing: border-box; padding: 24px; border-radius: 18px; background: #FFFFFF; border: 1px solid #DDE3DC; display: flex; flex-direction: column; gap: 20px">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px">
+            <h2 style="margin: 0; font-size: 18px; font-weight: 700">Витрати по тижнях</h2>
+            <a href="WebFinance.dc.html" style="font-size: 14px; font-weight: 600; color: #3346A0">Уся історія</a>
+          </div>
+          <div style="display: flex; align-items: flex-end; gap: 16px; height: 190px">
+            <sc-for list="{{weeks}}" as="w" hint-placeholder-count="5">
+              <div style="flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 8px">
+                <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600">{{w.sum}}</div>
+                <div style="width: 100%; max-width: 72px; border-radius: 10px 10px 4px 4px; height: {{w.h}}; background: {{w.c}}"></div>
+                <div style="font-size: 12px; color: #4A5750; text-align: center">{{w.label}}</div>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+      </div>
+
+      <div style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 24px">
+        <section style="box-sizing: border-box; padding: 24px; border-radius: 18px; background: #FFFFFF; border: 1px solid #DDE3DC; display: flex; flex-direction: column; gap: 14px">
+          <h2 style="margin: 0; font-size: 18px; font-weight: 700">Склад просить уваги</h2>
+          <sc-for list="{{alerts}}" as="a" hint-placeholder-count="5">
+            <div style="display: flex; flex-direction: column; gap: 6px">
+              <div style="display: flex; justify-content: space-between; gap: 8px; font-size: 14px"><span style="font-weight: 600">{{a.name}}</span><span style="font-family: 'JetBrains Mono', monospace">{{a.qty}}</span></div>
+              <div style="height: 6px; border-radius: 999px; background: #E6EBE6"><div style="height: 6px; border-radius: 999px; width: {{a.w}}; background: {{a.c}}"></div></div>
+              <div style="font-size: 12px; color: #4A5750">{{a.note}}</div>
+            </div>
+          </sc-for>
+        </section>
+
+        <section style="box-sizing: border-box; padding: 24px; border-radius: 18px; background: #14201A; color: #FFFFFF; display: flex; flex-direction: column; gap: 14px">
+          <h2 style="margin: 0; font-size: 18px; font-weight: 700; color: #C8F169">Останні скани</h2>
+          <sc-for list="{{scans}}" as="s" hint-placeholder-count="3">
+            <div style="display: flex; gap: 12px; align-items: baseline">
+              <div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #A9B5AD; width: 44px">{{s.time}}</div>
+              <div style="flex: 1 1 0; min-width: 0">
+                <div style="font-size: 14px; font-weight: 600">{{s.title}}</div>
+                <div style="font-size: 13px; color: #D5DDD7">{{s.note}}</div>
+              </div>
+            </div>
+          </sc-for>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const active = "Огляд";
+    const items = [
+      ["Огляд", "WebHome.dc.html", "#14201A", "#EEF1ED", "M4 11l8-7 8 7v9H4z"],
+      ["Меню", "WebMenu.dc.html", "#1E6B45", "#E3F1E8", "M5 6h14v14H5zM5 10h14M9 3v4M15 3v4"],
+      ["Рецепти", "WebRecipes.dc.html","#B23A24", "#FBE6E0", "M6 4h12v16H6zM9 8h6M9 12h6"],
+      ["Склад", "WebPantry.dc.html", "#19676B", "#DDEFEE", "M4 5h16v14H4zM4 12h16M9 8.5h6M9 15.5h6"],
+      ["Магазини", "WebShops.dc.html","#8A5600", "#FBEFD2", "M6 8h12l-1 12H7zM9 8a3 3 0 0 1 6 0"],
+      ["Фінанси", "WebFinance.dc.html", "#3346A0", "#E3E7F8", "M5 20V10M12 20V4M19 20v-7"],
+      ["Сім’я", "WebFamily.dc.html","#7A3E78", "#F1E3F0", "M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 20a5 5 0 0 1 10 0M17 11a2.5 2.5 0 1 0 0-5M15 15a4.5 4.5 0 0 1 6 5"],
+      ["Скан", "WebScan.dc.html","#14201A", "#EAF6C8", "M4 8V5h3M17 5h3v3M20 16v3h-3M7 19H4v-3M8 12h8"]
+    ];
+    const nav = items.map((i) => ({ label: i[0], href: i[1], ic: i[2], d: i[4], w: i[0] === active ? 700 : 500, bg: i[0] === active ? i[3] : "transparent", cur: i[0] === active ? "page" : undefined }));
+    const meals = [
+      { slot: "Сніданок", dish: "Сирники зі сметаною", meta: "25 хв · продукти списано", chip: "Приготовано", cbg: "#E3F1E8", cfg: "#14522F", todo: false },
+      { slot: "Обід", dish: "Борщ із пампушками", meta: "60 хв · вистачить і на п’ятницю", chip: "Усе є", cbg: "#DDEFEE", cfg: "#124E51", todo: true },
+      { slot: "Вечеря", dish: "Запечена курка з овочами", meta: "50 хв · немає кабачка і паприки", chip: "Бракує 2", cbg: "#FBEFD2", cfg: "#6B4300", todo: false }
+    ];
+    const weeks = [
+      { label: "12–18 жов", sum: "3 980", h: "126px", c: "#B9C2EC" },
+      { label: "19–25 жов", sum: "4 420", h: "140px", c: "#B9C2EC" },
+      { label: "26 жов – 1 лис", sum: "3 760", h: "119px", c: "#B9C2EC" },
+      { label: "2–8 лис", sum: "4 180", h: "132px", c: "#B9C2EC" },
+      { label: "9–12 лис · триває", sum: "2 940", h: "93px", c: "#3346A0" }
+    ];
+    const alerts = [
+      { name: "Куряче філе", qty: "600 г", w: "60%", c: "#B23A24", note: "Термін до 13 листопада — у меню на сьогодні" },
+      { name: "Молоко 2,5%", qty: "0,3 л", w: "14%", c: "#8A5600", note: "Мало · уже в списку покупок" },
+      { name: "Яйця", qty: "2 шт", w: "20%", c: "#8A5600", note: "Мало · уже в списку покупок" },
+      { name: "Сметана 20%", qty: "350 г", w: "70%", c: "#B23A24", note: "Термін до 14 листопада" },
+      { name: "Масло вершкове", qty: "40 г", w: "10%", c: "#8A5600", note: "Мало · додати до списку?" }
+    ];
+    const scans = [
+      { time: "10:42", title: "Чек · Сільпо · 1 284,50 ₴", note: "18 позицій на склад, 2 уточнено" },
+      { time: "08:15", title: "Голосове · 3 позиції", note: "Молоко, яйця, хліб — у список покупок" },
+      { time: "учора", title: "Відео холодильника", note: "Інвентаризація: оновлено 14 залишків" }
+    ];
+    return { nav, meals, weeks, alerts, scans };
+  }
+}
+</script>
+</body>
+</html>

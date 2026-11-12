@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Cook & Eat — перевірка скану, телефон</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#C8F169}a:hover{color:#FFFFFF}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; font-family: 'Onest', system-ui, sans-serif; color: #FFFFFF; background: #14201A">
+
+  <div style="flex-grow: 1; box-sizing: border-box; padding: 56px 20px 0; display: flex; flex-direction: column; gap: 14px; overflow: hidden">
+    <div style="display: flex; align-items: center; gap: 12px">
+      <a href="MHome.dc.html" aria-label="Назад" style="width: 44px; height: 44px; border-radius: 14px; background: #24332B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 18px; text-decoration: none">←</a>
+      <div style="flex-grow: 1">
+        <h1 style="margin: 0; font-family: 'Unbounded', 'Onest', sans-serif; font-weight: 700; font-size: 20px">Перевірка скану</h1>
+        <div style="font-size: 13px; color: #D5DDD7">Telegram · фото чека · 10:42</div>
+      </div>
+    </div>
+
+    <div style="display: flex; padding: 4px; border-radius: 16px; background: #24332B">
+      <button type="button" aria-pressed="true" style="flex: 1 1 0; height: 44px; border: 0; border-radius: 12px; background: #C8F169; color: #14201A; font: 600 14px 'Onest', sans-serif">Купили — додати</button>
+      <button type="button" aria-pressed="false" style="flex: 1 1 0; height: 44px; border: 0; border-radius: 12px; background: transparent; color: #FFFFFF; font: 600 14px 'Onest', sans-serif">Інвентаризація</button>
+    </div>
+
+    <section style="border-radius: 20px; background: #F3F5F1; color: #14201A; padding: 16px 16px 6px; display: flex; flex-direction: column; font-family: 'JetBrains Mono', monospace">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 12px; border-bottom: 2px dashed #8B988F">
+        <div><div style="font-family: 'Unbounded', 'Onest', sans-serif; font-weight: 700; font-size: 18px">Сільпо</div><div style="font-size: 12px; color: #4A5750">12.11.2026 · 18 позицій</div></div>
+        <div style="font-weight: 600; font-size: 20px">1 284,50 ₴</div>
+      </div>
+      <sc-for list="{{items}}" as="i" hint-placeholder-count="6">
+        <div style="display: flex; align-items: center; gap: 8px; min-height: 48px; border-bottom: 1px dashed #C5CEC6; margin: 0 -8px; padding: 0 8px; border-radius: 10px; background: {{i.bg}}">
+          <div style="flex-grow: 1; min-width: 0">
+            <div style="font-family: 'Onest', sans-serif; font-size: 14px; font-weight: 600">{{i.name}}</div>
+            <div style="font-size: 11px; color: #4A5750">{{i.raw}}</div>
+          </div>
+          <span style="font-size: 13px; white-space: nowrap; flex-shrink: 0">{{i.qty}}</span>
+          <span style="width: 54px; flex-shrink: 0; text-align: right; font-size: 13px; font-weight: 600">{{i.price}}</span>
+          <sc-if value="{{i.ask}}" hint-placeholder-val="{{false}}">
+            <button type="button" style="height: 44px; padding: 0 8px; flex-shrink: 0; border: 0; border-radius: 10px; background: #14201A; color: #C8F169; font: 600 12px 'Onest', sans-serif">Уточнити</button>
+          </sc-if>
+        </div>
+      </sc-for>
+      <a href="#" style="display: flex; justify-content: space-between; align-items: center; min-height: 44px; font-size: 13px; color: #14201A; text-decoration: none"><span>ще 12 позицій</span><span style="font-weight: 600">661,90 ₴</span></a>
+    </section>
+
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+      <div style="padding: 12px 14px; border-radius: 16px; background: #24332B"><div style="font-size: 12px; color: #D5DDD7">Склад</div><div style="font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 15px; color: #C8F169">+18 позицій</div></div>
+      <div style="padding: 12px 14px; border-radius: 16px; background: #24332B"><div style="font-size: 12px; color: #D5DDD7">Фінанси · листопад</div><div style="font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 15px; color: #C8F169">+1 284,50 ₴</div></div>
+    </div>
+  </div>
+
+  <div style="box-sizing: border-box; padding: 12px 20px 28px; display: flex; flex-direction: column; gap: 8px">
+    <button type="button" style="height: 52px; border: 0; border-radius: 16px; background: #C8F169; color: #14201A; font: 700 16px 'Onest', sans-serif">Підтвердити 18 позицій</button>
+    <div style="text-align: center; font-size: 12px; color: #D5DDD7">2 позиції під питанням запишуться як є — їх можна виправити пізніше</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const mk = (r) => ({ name: r[0], raw: r[1], qty: r[2], price: r[3], ask: !!r[4], bg: r[4] ? "#E4F5B4" : "transparent" });
+    const items = [
+      ["Молоко 2,5%", "МОЛОКО 2.5% 1Л", "2 л", "93,80"],
+      ["Яйця С1", "ЯЙЦЯ КУР С1 10ШТ", "10 шт", "71,90"],
+      ["Масло вершкове", "МАСЛО ВЕРШК 82% 200Г", "200 г", "97,50"],
+      ["Сир кисломолочний", "СИР К/М 5% 400Г", "400 г", "119,00"],
+      ["Філе хека?", "ФIЛЕ ХЕК ЗАМ ВАГ", "600 г", "168,40", true],
+      ["Томати консерв.?","ТОМ КОНС 400", "1 шт", "72,00", true]
+    ].map(mk);
+    return { items };
+  }
+}
+</script>
+</body>
+</html>

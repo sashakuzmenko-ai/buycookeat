@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Cook & Eat — фінанси, телефон</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#3346A0}a:hover{color:#14201A}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; font-family: 'Onest', system-ui, sans-serif; color: #14201A; background: #F3F5F1">
+
+  <div style="box-sizing: border-box; padding: 56px 20px 22px; background: #3346A0; color: #FFFFFF; display: flex; flex-direction: column; gap: 12px">
+    <div style="display: flex; justify-content: space-between; align-items: center">
+      <span style="font-size: 14px; font-weight: 600; color: #DCE1F8">Фінанси · листопад</span>
+      <div style="display: flex; gap: 6px">
+        <button type="button" aria-label="Попередній місяць" style="width: 44px; height: 44px; border: 0; border-radius: 14px; background: #4455AF; color: #FFFFFF; font: 600 16px 'Onest', sans-serif">←</button>
+        <button type="button" aria-label="Наступний місяць" style="width: 44px; height: 44px; border: 0; border-radius: 14px; background: #4455AF; color: #FFFFFF; font: 600 16px 'Onest', sans-serif">→</button>
+      </div>
+    </div>
+    <div style="display: flex; align-items: baseline; gap: 10px">
+      <h1 style="margin: 0; font-family: 'Unbounded', 'Onest', sans-serif; font-weight: 700; font-size: 34px">7 460 ₴</h1>
+      <span style="font-size: 14px; color: #DCE1F8">з 18 000 ₴</span>
+    </div>
+    <div style="height: 10px; border-radius: 999px; background: #5566BB"><div style="width: 41%; height: 10px; border-radius: 999px; background: #C8F169"></div></div>
+    <div style="display: flex; justify-content: space-between; font-size: 13px; color: #DCE1F8"><span>Залишок 10 540 ₴</span><span>585 ₴ на день</span></div>
+  </div>
+
+  <div style="flex-grow: 1; box-sizing: border-box; padding: 16px 20px 0; display: flex; flex-direction: column; gap: 14px; overflow: hidden">
+    <section style="box-sizing: border-box; padding: 16px; border-radius: 20px; background: #FFFFFF; border: 1px solid #DDE3DC; display: flex; flex-direction: column; gap: 12px">
+      <div style="display: flex; justify-content: space-between; align-items: baseline">
+        <h2 style="margin: 0; font-size: 16px; font-weight: 700">По тижнях</h2>
+        <span style="font-size: 13px; color: #4A5750">прогноз ≈ 18 650 ₴</span>
+      </div>
+      <div style="display: flex; align-items: flex-end; gap: 10px; height: 142px">
+        <sc-for list="{{weeks}}" as="w" hint-placeholder-count="5">
+          <div style="flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 5px">
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600">{{w.sum}}</div>
+            <div style="width: 100%; border-radius: 8px 8px 3px 3px; height: {{w.h}}; background: {{w.c}}"></div>
+            <div style="font-size: 11px; color: #4A5750">{{w.label}}</div>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <section style="border-radius: 20px; background: #FFFFFF; border: 1px solid #DDE3DC; padding: 6px 16px 4px">
+      <div style="display: flex; justify-content: space-between; align-items: center; min-height: 44px">
+        <h2 style="margin: 0; font-size: 16px; font-weight: 700">Чеки</h2>
+        <a href="#" style="font-size: 14px; font-weight: 600">Усі 13</a>
+      </div>
+      <sc-for list="{{receipts}}" as="r" hint-placeholder-count="4">
+        <div style="display: flex; align-items: center; gap: 12px; min-height: 54px; border-top: 1px dashed #C5CEC6">
+          <span style="width: 44px; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #4A5750">{{r.date}}</span>
+          <div style="flex-grow: 1"><div style="font-size: 15px; font-weight: 600">{{r.store}}</div><div style="font-size: 12px; color: #4A5750">{{r.note}}</div></div>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 600">{{r.sum}}</span>
+        </div>
+      </sc-for>
+    </section>
+  </div>
+
+  <nav aria-label="Нижня навігація" style="height: 84px; box-sizing: border-box; padding: 8px 12px 20px; background: #FFFFFF; border-top: 1px solid #DDE3DC; display: flex; justify-content: space-between; align-items: center">
+    <a href="MHome.dc.html" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; font-weight: 500; color: #4A5750; text-decoration: none">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4A5750" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9H4z"></path></svg>Огляд
+    </a>
+    <a href="MMenu.dc.html" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; font-weight: 500; color: #4A5750; text-decoration: none">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4A5750" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6h14v14H5zM5 10h14M9 3v4M15 3v4"></path></svg>Меню
+    </a>
+    <a href="MScan.dc.html" aria-label="Скан" style="width: 56px; height: 56px; border-radius: 18px; background: #14201A; display: flex; align-items: center; justify-content: center">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#C8F169" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5h3M17 5h3v3M20 16v3h-3M7 19H4v-3M8 12h8"></path></svg>
+    </a>
+    <a href="MPantry.dc.html" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; font-weight: 500; color: #4A5750; text-decoration: none">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4A5750" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v14H4zM4 12h16M9 8.5h6M9 15.5h6"></path></svg>Склад
+    </a>
+    <a href="MFamily.dc.html" aria-current="page" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; font-weight: 700; color: #14201A; text-decoration: none">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#14201A" stroke-width="2.6" stroke-linecap="round"><path d="M5 12h.01M12 12h.01M19 12h.01"></path></svg>Ще
+    </a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const weeks = [
+      { label: "12–18.10", sum: "3 980", h: "86px", c: "#B9C2EC" },
+      { label: "19–25.10", sum: "4 420", h: "96px", c: "#B9C2EC" },
+      { label: "26.10–1.11", sum: "3 760", h: "82px", c: "#B9C2EC" },
+      { label: "2–8.11", sum: "4 180", h: "91px", c: "#B9C2EC" },
+      { label: "9–12.11", sum: "2 940", h: "64px", c: "#3346A0" }
+    ];
+    const receipts = [
+      { date: "12.11", store: "Сільпо", note: "18 позицій · фото чека", sum: "1 284,50 ₴" },
+      { date: "11.11", store: "АТБ", note: "9 позицій · фото чека", sum: "642,00 ₴" },
+      { date: "10.11", store: "Ринок", note: "6 позицій · голосове", sum: "715,00 ₴" },
+      { date: "09.11", store: "АТБ", note: "5 позицій · скріншот", sum: "298,50 ₴" }
+    ];
+    return { weeks, receipts };
+  }
+}
+</script>
+</body>
+</html>
