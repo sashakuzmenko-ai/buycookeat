@@ -10,6 +10,7 @@ export type FamilyMember = {
   birth_date: string | null;
   portion_factor: number;
   notes: string | null;
+  restrictions: string[];
 };
 
 /** Користувач (або редірект на /login). Викликати в кожній server action. */
@@ -28,7 +29,7 @@ export const getContext = cache(async () => {
   const { supabase, user } = await requireUser();
   const { data: link } = await supabase
     .from("household_users")
-    .select("household_id, households(name, city)")
+    .select("household_id, households(id, name, city, monthly_budget)")
     .eq("user_id", user.id)
     .order("created_at")
     .limit(1)
@@ -37,12 +38,25 @@ export const getContext = cache(async () => {
 
   const { data: members } = await supabase
     .from("family_members")
-    .select("id, name, kind, birth_date, portion_factor, notes")
+    .select("id, name, kind, birth_date, portion_factor, notes, restrictions")
     .eq("household_id", link.household_id)
     .order("created_at");
 
-  const family = (members ?? []) as FamilyMember[];
-  const household = link.households as unknown as { name: string; city: string | null };
+  const family = ((members ?? []) as unknown as Array<Record<string, unknown>>).map((m) => ({
+    id: String(m.id ?? ""),
+    name: String(m.name ?? ""),
+    kind: m.kind === "child" ? ("child" as const) : ("adult" as const),
+    birth_date: (m.birth_date as string | null) ?? null,
+    portion_factor: Number(m.portion_factor ?? 1),
+    notes: (m.notes as string | null) ?? null,
+    restrictions: Array.isArray(m.restrictions) ? (m.restrictions as string[]) : [],
+  }));
+  const household = link.households as unknown as {
+    id?: string;
+    name: string;
+    city: string | null;
+    monthly_budget?: number | null;
+  };
   return {
     supabase,
     user,
