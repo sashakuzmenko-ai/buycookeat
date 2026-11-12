@@ -7,6 +7,7 @@ const LINKS = [
   { href: "/", label: "Меню" },
   { href: "/shopping", label: "Покупки" },
   { href: "/pantry", label: "Запаси" },
+  { href: "/scan", label: "+ Скан" },
   { href: "/recipes", label: "Рецепти" },
   { href: "/products", label: "Продукти" },
   { href: "/settings", label: "Сім'я" },
