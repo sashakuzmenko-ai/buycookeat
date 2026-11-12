@@ -2,18 +2,23 @@
 
 export type ScanMode = "add" | "set"; // add: купили, додати; set: інвентаризація, стільки є зараз
 
+export type ScanUnit = "г" | "мл" | "шт";
+
 export type ScanItem = {
   raw: string; // як було на чеку / у диктовці
   productId: string | null; // збіг із базою продуктів
   name: string; // назва для нового продукту
   category: string;
-  unit: "г" | "мл" | "шт";
+  unit: ScanUnit;
   quantity: number; // в одиниці продукту
   uncertain: boolean;
+  price: number | null; // ціна позиції в гривнях, якщо її видно
 };
 
+export type ScanSource = "voice" | "images" | "both" | "text" | "none";
+
 export type ScanResult = {
-  source: "voice" | "images" | "both" | "none";
+  source: ScanSource;
   store: string;
   total: number;
   items: ScanItem[];
