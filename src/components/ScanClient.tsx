@@ -27,8 +27,16 @@ const SOURCE_LABEL: Record<ScanResult["source"], string> = {
   none: "нічого не розпізнано",
 };
 
-export function ScanClient({ products, aiEnabled }: { products: Product[]; aiEnabled: boolean }) {
-  const [mode, setMode] = useState<ScanMode>("add");
+export function ScanClient({
+  products,
+  aiEnabled,
+  initialMode = "add",
+}: {
+  products: Product[];
+  aiEnabled: boolean;
+  initialMode?: ScanMode;
+}) {
+  const [mode, setMode] = useState<ScanMode>(initialMode);
   const [images, setImages] = useState<string[]>([]);
   const [audio, setAudio] = useState<WavAudio | null>(null);
   const [audioFrom, setAudioFrom] = useState<"mic" | "video" | null>(null);
