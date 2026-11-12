@@ -17,6 +17,32 @@ import {
   scaledNeed,
 } from "../src/lib/recipes.ts";
 import { addDays, weekDays, weekStart } from "../src/lib/dates.ts";
+import {
+  FORECAST_MIN_ELAPSED_DAYS,
+  amountOf,
+  averageReceipt,
+  budgetRemaining,
+  categoryTotals,
+  daysInMonth,
+  daysInYear,
+  forecastState,
+  formatShare,
+  formatUah,
+  monthForecast,
+  monthTitle,
+  pace,
+  parseMoney,
+  parsePeriod,
+  periodTitle,
+  priceChanges,
+  readBudget,
+  shiftAnchor,
+  storeTotals,
+  summarizePeriod,
+  totalsByMonth,
+  totalsByWeek,
+  type DatedLine,
+} from "../src/lib/finance.ts";
 import { SEED_FAMILY, SEED_PRODUCTS, SEED_RECIPES, SEED_STORES, SEED_EQUIPMENT } from "../src/lib/seed-data.ts";
 import {
   pluralizePositions,
@@ -342,6 +368,159 @@ assert.equal(recipeReturnPath("/recipes", "/menu"), "/recipes");
 assert.equal(recipeReturnPath("/recipes/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", "/menu"), "/recipes/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
 assert.equal(recipeReturnPath("https://evil.test/recipes", "/menu"), "/menu");
 assert.equal(recipeReturnPath("/recipes/not-an-id", "/menu"), "/menu");
+
+// фінанси: 7 460 ₴ за 12 днів листопада з бюджету 18 000 ₴ → прогноз 18 650 ₴
+assert.equal(FORECAST_MIN_ELAPSED_DAYS, 3);
+assert.equal(monthForecast(7460, 12, 30), 18650);
+assert.equal(monthForecast(100, 2, 30), null);
+assert.equal(monthForecast(30, 3, 30), 300);
+assert.equal(monthForecast(0, 12, 30), null);
+assert.equal(budgetRemaining(7460, 18000), 10540);
+assert.equal(formatShare(7460 / 18000), "41%");
+assert.equal(formatShare(12 / 30), "40%");
+assert.equal(pace(7460, 18000, 12, 30)?.spentShare, 7460 / 18000);
+assert.equal(pace(0, 18000, 12, 30), null);
+assert.equal(pace(100, null, 12, 30), null);
+assert.equal(formatUah(7460).replace(/\s/g, " "), "7 460 ₴");
+assert.equal(formatUah(1284.5).replace(/\s/g, " "), "1 284,50 ₴");
+assert.equal(formatUah(-650).replace(/\s/g, " "), "−650 ₴");
+assert.equal(daysInMonth("2026-11-12"), 30);
+assert.equal(daysInYear("2024-01-01"), 366);
+assert.equal(daysInYear("2026-01-01"), 365);
+assert.equal(readBudget(null), null);
+assert.equal(readBudget(0), null);
+assert.equal(readBudget("18000.00"), 18000);
+assert.equal(parseMoney("1 284,50"), 1284.5);
+assert.equal(parseMoney("12."), 12);
+assert.equal(parseMoney("-1"), null);
+assert.equal(parsePeriod("week", "2026-11-12", "2026-11-01").anchor, weekStart("2026-11-12"));
+assert.equal(parsePeriod("nope", undefined, "2026-11-12").anchor, "2026-11-01");
+assert.equal(shiftAnchor("month", "2026-12-01", 1), "2027-01-01");
+assert.equal(shiftAnchor("week", "2026-11-09", 1), "2026-11-16");
+assert.equal(monthTitle("2026-11-01"), "Листопад 2026");
+assert.equal(periodTitle("year", "2026-01-01"), "2026");
+
+const november = { start: "2026-11-01", end: "2026-11-30" };
+const financeRows = [{ id: "nov", purchasedAt: "2026-11-12", amount: 7460, storeName: "Сільпо" }];
+const novemberSummary = summarizePeriod("month", "2026-11-01", "2026-11-12", 18000, financeRows);
+assert.equal(novemberSummary.spent, 7460);
+assert.equal(novemberSummary.remaining, 10540);
+assert.equal(novemberSummary.perDay, 585.56);
+assert.equal(novemberSummary.forecast.status, "value");
+if (novemberSummary.forecast.status === "value") assert.equal(novemberSummary.forecast.amount, 18650);
+assert.equal(novemberSummary.pace && Math.round(novemberSummary.pace.spentShare * 100), 41);
+assert.equal(novemberSummary.pace && Math.round(novemberSummary.pace.elapsedShare * 100), 40);
+
+const earlyRows = [{ id: "early", purchasedAt: "2026-11-01", amount: 100, storeName: "АТБ" }];
+assert.equal(summarizePeriod("month", "2026-11-01", "2026-11-02", 18000, earlyRows).forecast.status, "too-early");
+assert.equal(forecastState(financeRows, november, "2026-11-12", null).status, "no-budget");
+assert.equal(forecastState([], november, "2026-11-12", 18000).status, "no-receipts");
+assert.equal(forecastState(financeRows, { start: "2026-10-01", end: "2026-10-31" }, "2026-11-12", 18000).status, "outside");
+
+const emptyMonth = summarizePeriod("month", "2026-11-01", "2026-11-12", 18000, []);
+assert.equal(emptyMonth.spent, 0);
+assert.equal(emptyMonth.average, null);
+assert.equal(emptyMonth.pace, null);
+assert.equal(emptyMonth.remaining, 18000);
+assert.equal(emptyMonth.forecast.status, "no-receipts");
+
+const financeWeek = summarizePeriod("week", "2026-11-09", "2026-11-12", 18000, financeRows);
+assert.equal(financeWeek.basis, 4200);
+assert.equal(financeWeek.remaining, -3260);
+assert.equal(financeWeek.forecast.status, "value");
+assert.equal(summarizePeriod("year", "2026-01-01", "2026-11-12", 18000, financeRows).basis, 216000);
+
+assert.deepEqual(
+  totalsByMonth(
+    [
+      { purchasedAt: "2026-10-02", amount: 10 },
+      { purchasedAt: "2026-11-02", amount: 5 },
+      { purchasedAt: "2026-11-03", amount: 7 },
+    ],
+    ["2026-10-01", "2026-11-01"],
+  ),
+  [10, 12],
+);
+assert.deepEqual(totalsByWeek([{ purchasedAt: "2026-11-12", amount: 4 }], ["2026-11-09"]), [4]);
+
+function financeLine(partial: Partial<DatedLine> & Pick<DatedLine, "purchasedAt" | "price">): DatedLine {
+  return {
+    id: partial.id ?? "line",
+    productId: partial.productId ?? null,
+    productName: partial.productName ?? null,
+    category: partial.category ?? null,
+    rawName: partial.rawName ?? "сире",
+    quantity: partial.quantity ?? 1,
+    unit: partial.unit ?? "шт",
+    price: partial.price,
+    purchasedAt: partial.purchasedAt,
+  };
+}
+
+assert.deepEqual(
+  categoryTotals(
+    [
+      financeLine({ purchasedAt: "2026-11-02", productId: "meat", category: "м'ясо", price: 100, productName: "Філе" }),
+      financeLine({ purchasedAt: "2026-11-03", price: 40 }),
+      financeLine({ purchasedAt: "2026-10-01", productId: "meat", category: "м'ясо", price: 999 }),
+      financeLine({ purchasedAt: "2026-11-04", productId: "misc", category: "інше", price: 15 }),
+    ],
+    november,
+  ).map((row) => [row.name, row.total]),
+  [
+    ["М'ясо", 100],
+    ["Інше", 55],
+  ],
+);
+
+const financeStores = storeTotals(
+  [
+    { purchasedAt: "2026-11-01", amount: 70, storeName: "Сільпо" },
+    { purchasedAt: "2026-11-02", amount: 30, storeName: "АТБ" },
+    { purchasedAt: "2026-10-02", amount: 500, storeName: "Сільпо" },
+    { purchasedAt: "2026-11-03", amount: 10, storeName: "  " },
+  ],
+  november,
+);
+assert.deepEqual(
+  financeStores.map((row) => [row.name, row.total]),
+  [
+    ["Сільпо", 70],
+    ["АТБ", 30],
+    ["Без магазину", 10],
+  ],
+);
+assert.equal(storeTotals(
+  [
+    { purchasedAt: "2026-11-01", amount: 70, storeName: "Сільпо" },
+    { purchasedAt: "2026-11-02", amount: 30, storeName: "АТБ" },
+  ],
+  november,
+)[0].share, 0.7);
+
+const financePrices = priceChanges(
+  [
+    financeLine({ id: "1", purchasedAt: "2026-11-01", productId: "butter", productName: "Масло", price: 100, quantity: 1, unit: "шт" }),
+    financeLine({ id: "2", purchasedAt: "2026-11-20", productId: "butter", productName: "Масло", price: 112, quantity: 1, unit: "шт" }),
+    financeLine({ id: "3", purchasedAt: "2026-11-05", productId: "bread", productName: "Хліб", price: 20, quantity: 1 }),
+    financeLine({ id: "4", purchasedAt: "2026-11-08", productId: "mix", productName: "Молоко", price: 40, quantity: 1, unit: "л" }),
+    financeLine({ id: "5", purchasedAt: "2026-11-18", productId: "mix", productName: "Молоко", price: 50, quantity: 1, unit: "шт" }),
+  ],
+  november,
+);
+assert.equal(financePrices.length, 1);
+assert.equal(financePrices[0].productId, "butter");
+assert.equal(Math.round(financePrices[0].change * 100), 12);
+assert.equal(amountOf({ total: null, items: [{ price: 10 }, { price: 2.5 }] }), 12.5);
+assert.equal(amountOf({ total: 0, items: [{ price: 10 }] }), 0);
+assert.equal(averageReceipt(
+  [
+    { purchasedAt: "2026-11-01", amount: 10 },
+    { purchasedAt: "2026-11-02", amount: 20 },
+    { purchasedAt: "2026-10-01", amount: 99 },
+  ],
+  november,
+), 15);
 
 // ---------- Склад (pantry) ----------
 // відмінювання
