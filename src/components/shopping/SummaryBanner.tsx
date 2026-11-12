@@ -2,13 +2,18 @@ import React from "react";
 import { moveShoppingItems } from "@/app/(app)/shopping/actions";
 import type { SavingsRecommendation } from "@/lib/prices";
 
+export interface RouteStore {
+  readonly id: string;
+  readonly name: string;
+}
+
 export interface SummaryBannerProps {
-  totalCount: number;
-  pricedCount: number;
-  totalSum: number;
-  routeStores: { id: string; name: string }[];
-  recommendation: SavingsRecommendation | null;
-  week: string;
+  readonly totalCount: number;
+  readonly pricedCount: number;
+  readonly totalSum: number;
+  readonly routeStores: readonly RouteStore[];
+  readonly recommendation: SavingsRecommendation | null;
+  readonly week: string;
 }
 
 export function SummaryBanner({
@@ -18,7 +23,7 @@ export function SummaryBanner({
   routeStores,
   recommendation,
   week,
-}: SummaryBannerProps) {
+}: Readonly<SummaryBannerProps>) {
   const routeText = routeStores.length > 0 ? routeStores.map((s) => s.name).join(" → ") : "—";
 
   return (

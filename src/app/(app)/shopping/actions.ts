@@ -6,7 +6,10 @@ import { getContext } from "@/lib/context";
 import { parseWeekParam, weekDays } from "@/lib/dates";
 import { buildShoppingList, type PlanLine, type ProductInfo } from "@/lib/shopping";
 
-const str = (fd: FormData, key: string) => String(fd.get(key) ?? "").trim();
+const str = (fd: FormData, key: string) => {
+  const val = fd.get(key);
+  return typeof val === "string" ? val.trim() : "";
+};
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const uuidOrNull = (v: string) => (UUID.test(v) ? v : null);
 

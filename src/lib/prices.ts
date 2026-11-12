@@ -2,6 +2,7 @@
 // Без звернень до бази — тестується scripts/check-logic.ts.
 
 export type Unit = "г" | "мл" | "шт";
+export type NullableNumberish = number | string | null | undefined;
 
 export const PRICE_BASIS: Record<string, number> = {
   "г": 1000,
@@ -54,9 +55,9 @@ export type StoreProductInput = {
 
 /** Нормалізована ціна з чека у перерахунку на базову одиницю (1 кг, 1 л, 1 шт). */
 export function normalizeReceiptItemPrice(
-  quantity: number | string | null | undefined,
+  quantity: NullableNumberish,
   unit: string | null | undefined,
-  price: number | string | null | undefined,
+  price: NullableNumberish,
 ): number | null {
   if (price == null || price === "") return null;
   const numPrice = Number(price);
@@ -69,6 +70,84 @@ export function normalizeReceiptItemPrice(
   return Math.round(((numPrice / numQty) * basis) * 100) / 100;
 }
 
+function parseIsoDate(dateStr?: string | null): number {
+  if (!dateStr) return 0;
+  const parsed = Date.parse(dateStr);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function buildStoreNameMap(stores: readonly StoreInput[]): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const s of stores) {
+    map.set(s.id, s.id);
+    if (s.name) map.set(s.name.trim().toLowerCase(), s.id);
+  }
+  return map;
+}
+
+function resolveStoreId(receipt: ReceiptInput, storeMap: Map<string, string>): string | null {
+  if (receipt.store_id) return receipt.store_id;
+  if (receipt.store_name) {
+    return storeMap.get(receipt.store_name.trim().toLowerCase()) ?? null;
+  }
+  return null;
+}
+
+function updateFreshest(
+  freshest: Map<string, { storeId: string; price: number; at: number }>,
+  productId: string,
+  storeId: string,
+  price: number,
+  at: number,
+) {
+  const prev = freshest.get(productId);
+  if (!prev || at >= prev.at) {
+    freshest.set(productId, { storeId, price, at });
+  }
+}
+
+type ReceiptCandidate = {
+  pricePerBasis: number;
+  purchasedAt: string;
+  createdAt: string;
+  storeId: string;
+  productId: string;
+};
+
+function extractLatestReceiptPrices(
+  receipts: readonly ReceiptInput[],
+  receiptItems: readonly ReceiptItemInput[],
+  storeMap: Map<string, string>,
+): Map<string, ReceiptCandidate> {
+  const receiptById = new Map<string, ReceiptInput>();
+  for (const r of receipts) receiptById.set(r.id, r);
+
+  const latest = new Map<string, ReceiptCandidate>();
+  for (const item of receiptItems) {
+    if (!item.product_id) continue;
+    const receipt = receiptById.get(item.receipt_id);
+    if (!receipt) continue;
+    const storeId = resolveStoreId(receipt, storeMap);
+    if (!storeId) continue;
+    const norm = normalizeReceiptItemPrice(item.quantity, item.unit, item.price);
+    if (norm == null) continue;
+
+    const purchasedAt = receipt.purchased_at || "1970-01-01";
+    const createdAt = item.created_at || receipt.created_at || "";
+    const key = `${storeId}:${item.product_id}`;
+    const existing = latest.get(key);
+    if (!existing) {
+      latest.set(key, { pricePerBasis: norm, purchasedAt, createdAt, storeId, productId: item.product_id });
+    } else {
+      const cmp = purchasedAt.localeCompare(existing.purchasedAt) || createdAt.localeCompare(existing.createdAt);
+      if (cmp >= 0) {
+        latest.set(key, { pricePerBasis: norm, purchasedAt, createdAt, storeId, productId: item.product_id });
+      }
+    }
+  }
+  return latest;
+}
+
 /**
  * Індекс останніх відомих цін на продукти в магазинах:
  * Спершу з позицій чеків за найсвіжішою датою чека,
@@ -77,7 +156,7 @@ export function normalizeReceiptItemPrice(
 export class StorePriceIndex {
   private readonly prices = new Map<string, number>(); // key: `${storeId}:${productId}`
   private readonly freshestStoreByProduct = new Map<string, { storeId: string; price: number; at: number }>();
-  private readonly storeReceiptMap = new Map<string, string>(); // storeName (lowercase) -> storeId
+  private readonly storeReceiptMap: Map<string, string>;
 
   constructor(
     stores: readonly StoreInput[],
@@ -85,10 +164,7 @@ export class StorePriceIndex {
     receiptItems: readonly ReceiptItemInput[],
     storeProducts: readonly StoreProductInput[],
   ) {
-    for (const s of stores) {
-      this.storeReceiptMap.set(s.id, s.id);
-      if (s.name) this.storeReceiptMap.set(s.name.trim().toLowerCase(), s.id);
-    }
+    this.storeReceiptMap = buildStoreNameMap(stores);
 
     // 1. Спочатку зчитуємо базові ціни зі store_products.price
     for (const sp of storeProducts) {
@@ -96,66 +172,14 @@ export class StorePriceIndex {
       const numPrice = Number(sp.price);
       if (!Number.isFinite(numPrice) || numPrice <= 0) continue;
       this.prices.set(`${sp.store_id}:${sp.product_id}`, numPrice);
-
-      const parsedAt = sp.price_updated_at ? Date.parse(sp.price_updated_at) : 0;
-      const at = Number.isNaN(parsedAt) ? 0 : parsedAt;
-      const prev = this.freshestStoreByProduct.get(sp.product_id);
-      if (!prev || at >= prev.at) {
-        this.freshestStoreByProduct.set(sp.product_id, { storeId: sp.store_id, price: numPrice, at });
-      }
+      updateFreshest(this.freshestStoreByProduct, sp.product_id, sp.store_id, numPrice, parseIsoDate(sp.price_updated_at));
     }
 
-    // 2. Збираємо позиції чеків: групуємо та знаходимо найостанніший чек для (магазин, продукт)
-    type Candidate = {
-      pricePerBasis: number;
-      purchasedAt: string;
-      createdAt: string;
-    };
-    const receiptById = new Map<string, ReceiptInput>();
-    for (const r of receipts) receiptById.set(r.id, r);
-
-    const latestReceiptItems = new Map<string, Candidate>(); // key: `${storeId}:${productId}`
-
-    for (const item of receiptItems) {
-      if (!item.product_id) continue;
-      const receipt = receiptById.get(item.receipt_id);
-      if (!receipt) continue;
-
-      let storeId = receipt.store_id;
-      if (!storeId && receipt.store_name) {
-        storeId = this.storeReceiptMap.get(receipt.store_name.trim().toLowerCase()) ?? null;
-      }
-      if (!storeId) continue;
-
-      const norm = normalizeReceiptItemPrice(item.quantity, item.unit, item.price);
-      if (norm == null) continue;
-
-      const purchasedAt = receipt.purchased_at || "1970-01-01";
-      const createdAt = item.created_at || receipt.created_at || "";
-      const key = `${storeId}:${item.product_id}`;
-
-      const existing = latestReceiptItems.get(key);
-      if (!existing) {
-        latestReceiptItems.set(key, { pricePerBasis: norm, purchasedAt, createdAt });
-      } else {
-        const cmp = purchasedAt.localeCompare(existing.purchasedAt) || createdAt.localeCompare(existing.createdAt);
-        if (cmp >= 0) {
-          latestReceiptItems.set(key, { pricePerBasis: norm, purchasedAt, createdAt });
-        }
-      }
-    }
-
-    // Записуємо ціни з чеків поверх store_products (позиція з чека має вищий пріоритет)
-    for (const [key, cand] of latestReceiptItems) {
+    // 2. Зчитуємо ціни з чеків
+    const receiptPrices = extractLatestReceiptPrices(receipts, receiptItems, this.storeReceiptMap);
+    for (const [key, cand] of receiptPrices) {
       this.prices.set(key, cand.pricePerBasis);
-      const [, productId] = key.split(":");
-      const storeId = key.substring(0, key.indexOf(":"));
-      const parsedAt = cand.purchasedAt ? Date.parse(cand.purchasedAt) : 0;
-      const at = Number.isNaN(parsedAt) ? 0 : parsedAt;
-      const prev = this.freshestStoreByProduct.get(productId);
-      if (!prev || at >= prev.at) {
-        this.freshestStoreByProduct.set(productId, { storeId, price: cand.pricePerBasis, at });
-      }
+      updateFreshest(this.freshestStoreByProduct, cand.productId, cand.storeId, cand.pricePerBasis, parseIsoDate(cand.purchasedAt));
     }
   }
 
@@ -178,7 +202,7 @@ export class StorePriceIndex {
 
 /** Орієнтовна ціна позиції у списку покупок. */
 export function calculateItemEstimatedPrice(
-  quantity: number | string | null | undefined,
+  quantity: NullableNumberish,
   unit: string | null | undefined,
   pricePerBasis: number | undefined,
 ): number | null {
@@ -211,6 +235,63 @@ export type SavingsRecommendation = {
   itemNames: string[];
 };
 
+type StoreSavingCandidate = {
+  savingAmount: number;
+  itemIds: string[];
+  itemNames: string[];
+};
+
+function calculateItemSaving(
+  item: ShoppingItemInput,
+  targetStoreId: string,
+  priceIndex: StorePriceIndex,
+): number | null {
+  const currentPricePerBasis = item.store_id
+    ? priceIndex.getExactStorePrice(item.store_id, item.product_id!)
+    : priceIndex.getPrice(item.store_id, item.product_id!);
+  if (currentPricePerBasis == null) return null;
+
+  const currentItemCost = calculateItemEstimatedPrice(item.quantity, item.unit, currentPricePerBasis);
+  if (currentItemCost == null) return null;
+
+  const targetPricePerBasis = priceIndex.getExactStorePrice(targetStoreId, item.product_id!);
+  if (targetPricePerBasis == null) return null;
+
+  const targetItemCost = calculateItemEstimatedPrice(item.quantity, item.unit, targetPricePerBasis);
+  if (targetItemCost == null) return null;
+
+  const diff = currentItemCost - targetItemCost;
+  return diff >= 0.5 ? diff : null;
+}
+
+function evaluateStoreSavings(
+  targetStoreId: string,
+  activeItems: readonly ShoppingItemInput[],
+  priceIndex: StorePriceIndex,
+): StoreSavingCandidate | null {
+  const itemIds: string[] = [];
+  const itemNames: string[] = [];
+  let totalSavings = 0;
+
+  for (const item of activeItems) {
+    if (item.store_id === targetStoreId) continue;
+    const diff = calculateItemSaving(item, targetStoreId, priceIndex);
+    if (diff != null) {
+      totalSavings += diff;
+      itemIds.push(item.id);
+      const name = item.products?.name ?? item.title ?? "продукт";
+      itemNames.push(name.toLocaleLowerCase("uk"));
+    }
+  }
+
+  if (totalSavings < 1) return null;
+  return {
+    savingAmount: Math.round(totalSavings),
+    itemIds,
+    itemNames: [...new Set(itemNames)],
+  };
+}
+
 /**
  * Знаходить підказку «В {Магазині} на {N} ₴ дешевше {продукти} — за вашими чеками».
  * Повертає null, якщо вигіднішого варіанту немає або немає даних чеків.
@@ -227,46 +308,13 @@ export function findStoreSavingsRecommendation(
   let maxSavings = 0;
 
   for (const targetStore of stores) {
-    const candidateItemIds: string[] = [];
-    const candidateItemNames: string[] = [];
-    let totalSavingsForStore = 0;
-
-    for (const item of activeItems) {
-      if (item.store_id === targetStore.id) continue; // вже в цьому магазині
-
-      // Поточна ціна позиції в її теперішньому магазині
-      const currentPricePerBasis = item.store_id
-        ? priceIndex.getExactStorePrice(item.store_id, item.product_id!)
-        : priceIndex.getPrice(item.store_id, item.product_id!);
-
-      if (currentPricePerBasis == null) continue;
-      const currentItemCost = calculateItemEstimatedPrice(item.quantity, item.unit, currentPricePerBasis);
-      if (currentItemCost == null) continue;
-
-      // Ціна в цільовому магазині
-      const targetPricePerBasis = priceIndex.getExactStorePrice(targetStore.id, item.product_id!);
-      if (targetPricePerBasis == null) continue;
-      const targetItemCost = calculateItemEstimatedPrice(item.quantity, item.unit, targetPricePerBasis);
-      if (targetItemCost == null) continue;
-
-      const diff = currentItemCost - targetItemCost;
-      // Враховуємо суттєву різницю (від 0.5 ₴)
-      if (diff >= 0.5) {
-        totalSavingsForStore += diff;
-        candidateItemIds.push(item.id);
-        const name = item.products?.name ?? item.title ?? "продукт";
-        candidateItemNames.push(name.toLocaleLowerCase("uk"));
-      }
-    }
-
-    if (totalSavingsForStore >= 1 && totalSavingsForStore > maxSavings) {
-      maxSavings = totalSavingsForStore;
+    const candidate = evaluateStoreSavings(targetStore.id, activeItems, priceIndex);
+    if (candidate && candidate.savingAmount > maxSavings) {
+      maxSavings = candidate.savingAmount;
       bestRecommendation = {
         targetStoreId: targetStore.id,
         targetStoreName: targetStore.name,
-        savingAmount: Math.round(totalSavingsForStore),
-        itemIds: candidateItemIds,
-        itemNames: [...new Set(candidateItemNames)],
+        ...candidate,
       };
     }
   }
@@ -293,6 +341,74 @@ export type PriceComparisonData = {
   rows: PriceComparisonRow[];
 };
 
+type ValidReceiptPrice = {
+  productId: string;
+  storeId: string;
+  pricePerBasis: number;
+  purchasedAt: string;
+};
+
+function collectValidReceiptItems(
+  stores: readonly StoreInput[],
+  receipts: readonly ReceiptInput[],
+  receiptItems: readonly ReceiptItemInput[],
+): ValidReceiptPrice[] {
+  const storeMap = buildStoreNameMap(stores);
+  const receiptById = new Map<string, ReceiptInput>();
+  for (const r of receipts) receiptById.set(r.id, r);
+
+  const results: ValidReceiptPrice[] = [];
+  for (const item of receiptItems) {
+    if (!item.product_id) continue;
+    const r = receiptById.get(item.receipt_id);
+    if (!r) continue;
+    const storeId = resolveStoreId(r, storeMap);
+    if (!storeId) continue;
+    const norm = normalizeReceiptItemPrice(item.quantity, item.unit, item.price);
+    if (norm == null) continue;
+
+    results.push({
+      productId: item.product_id,
+      storeId,
+      pricePerBasis: norm,
+      purchasedAt: r.purchased_at || "1970-01-01",
+    });
+  }
+  return results;
+}
+
+function buildComparisonRow(
+  productId: string,
+  product: { id: string; name: string; unit: string },
+  relevantStores: readonly { id: string; name: string }[],
+  latestPrice: Map<string, { price: number; purchasedAt: string }>,
+): PriceComparisonRow {
+  const storePrices = relevantStores.map((s) => {
+    const entry = latestPrice.get(`${productId}:${s.id}`);
+    return {
+      storeId: s.id,
+      storeName: s.name,
+      price: entry?.price ?? null,
+    };
+  });
+
+  const pricesWithValues = storePrices.filter((sp) => sp.price != null).map((sp) => sp.price!);
+  const minPrice = pricesWithValues.length > 0 ? Math.min(...pricesWithValues) : null;
+
+  return {
+    productId,
+    productName: product.name,
+    unit: product.unit,
+    pricesByStore: storePrices.map((sp) => ({
+      storeId: sp.storeId,
+      storeName: sp.storeName,
+      price: sp.price,
+      formattedPrice: sp.price != null ? `${sp.price.toFixed(2).replace(".", ",")} ₴` : "—",
+      isMin: sp.price != null && minPrice != null && Math.abs(sp.price - minPrice) < 0.001,
+    })),
+  };
+}
+
 /**
  * Таблиця «Де що дешевше»: порівняння цін між магазинами
  * ВИКЛЮЧНО за позиціями власних чеків.
@@ -303,48 +419,7 @@ export function buildPriceComparisonTable(
   receiptItems: readonly ReceiptItemInput[],
   products: readonly { id: string; name: string; unit: string }[],
 ): PriceComparisonData {
-  const storeMap = new Map<string, StoreInput>();
-  for (const s of stores) storeMap.set(s.id, s);
-
-  // Карта назв магазинів для зв'язку
-  const storeByName = new Map<string, StoreInput>();
-  for (const s of stores) {
-    if (s.name) storeByName.set(s.name.trim().toLowerCase(), s);
-  }
-
-  const receiptById = new Map<string, ReceiptInput>();
-  for (const r of receipts) receiptById.set(r.id, r);
-
-  // Знаходимо всі позиції чеків з валідною ціною
-  const validReceiptItems: {
-    productId: string;
-    storeId: string;
-    pricePerBasis: number;
-    purchasedAt: string;
-  }[] = [];
-
-  for (const item of receiptItems) {
-    if (!item.product_id) continue;
-    const r = receiptById.get(item.receipt_id);
-    if (!r) continue;
-
-    let store = r.store_id ? storeMap.get(r.store_id) : undefined;
-    if (!store && r.store_name) {
-      store = storeByName.get(r.store_name.trim().toLowerCase());
-    }
-    if (!store) continue;
-
-    const norm = normalizeReceiptItemPrice(item.quantity, item.unit, item.price);
-    if (norm == null) continue;
-
-    validReceiptItems.push({
-      productId: item.product_id,
-      storeId: store.id,
-      pricePerBasis: norm,
-      purchasedAt: r.purchased_at || "1970-01-01",
-    });
-  }
-
+  const validReceiptItems = collectValidReceiptItems(stores, receipts, receiptItems);
   if (validReceiptItems.length === 0) {
     return { hasReceipts: false, stores: [], rows: [] };
   }
@@ -378,35 +453,10 @@ export function buildPriceComparisonTable(
 
   // Будуємо рядки для продуктів
   const rows: PriceComparisonRow[] = [];
-
   for (const productId of activeProductIds) {
     const prod = productMap.get(productId);
     if (!prod) continue;
-
-    const storePrices = relevantStores.map((s) => {
-      const entry = latestPrice.get(`${productId}:${s.id}`);
-      return {
-        storeId: s.id,
-        storeName: s.name,
-        price: entry?.price ?? null,
-      };
-    });
-
-    const pricesWithValues = storePrices.filter((sp) => sp.price != null).map((sp) => sp.price!);
-    const minPrice = pricesWithValues.length > 0 ? Math.min(...pricesWithValues) : null;
-
-    rows.push({
-      productId,
-      productName: prod.name,
-      unit: prod.unit,
-      pricesByStore: storePrices.map((sp) => ({
-        storeId: sp.storeId,
-        storeName: sp.storeName,
-        price: sp.price,
-        formattedPrice: sp.price != null ? `${sp.price.toFixed(2).replace(".", ",")} ₴` : "—",
-        isMin: sp.price != null && minPrice != null && Math.abs(sp.price - minPrice) < 0.001,
-      })),
-    });
+    rows.push(buildComparisonRow(productId, prod, relevantStores, latestPrice));
   }
 
   // Сортуємо: спочатку продукти, що мають ціни в кількох магазинах, потім за алфавітом
@@ -461,6 +511,57 @@ export function pluralizePositions(count: number): string {
   return `${count} позицій`;
 }
 
+function computeReceiptItemTotals(receiptItems: readonly ReceiptItemInput[]): Map<string, number> {
+  const totals = new Map<string, number>();
+  for (const item of receiptItems) {
+    if (item.price != null && item.price !== "") {
+      const p = Number(item.price);
+      if (Number.isFinite(p) && p > 0) {
+        totals.set(item.receipt_id, (totals.get(item.receipt_id) ?? 0) + p);
+      }
+    }
+  }
+  return totals;
+}
+
+function isReceiptInMonth(purchasedAt: string | null | undefined, curYear: number, curMonth: number): boolean {
+  if (!purchasedAt) return false;
+  const parts = purchasedAt.split("-");
+  if (parts.length < 2) return false;
+  const y = Number.parseInt(parts[0], 10);
+  const m = Number.parseInt(parts[1], 10) - 1;
+  return y === curYear && m === curMonth;
+}
+
+type StoreStats = { count: number; total: number };
+
+function aggregateMonthlyStoreStats(
+  stores: readonly StoreInput[],
+  receipts: readonly ReceiptInput[],
+  itemTotals: Map<string, number>,
+  curYear: number,
+  curMonth: number,
+): Map<string, StoreStats> {
+  const storeMap = buildStoreNameMap(stores);
+  const stats = new Map<string, StoreStats>();
+
+  for (const r of receipts) {
+    if (!isReceiptInMonth(r.purchased_at, curYear, curMonth)) continue;
+    const storeId = resolveStoreId(r, storeMap);
+    if (!storeId) continue;
+
+    const receiptTotal = r.total != null && r.total !== "" ? Number(r.total) : (itemTotals.get(r.id) ?? 0);
+    const validTotal = Number.isFinite(receiptTotal) && receiptTotal >= 0 ? receiptTotal : 0;
+
+    const cur = stats.get(storeId) ?? { count: 0, total: 0 };
+    cur.count += 1;
+    cur.total += validTotal;
+    stats.set(storeId, cur);
+  }
+
+  return stats;
+}
+
 /**
  * Блок «Наші магазини · місяць» — агрегати з чеків за поточний місяць.
  */
@@ -472,52 +573,8 @@ export function buildMonthlyStoreSummaries(
 ): MonthlyStoreSummary[] {
   const curYear = now.getFullYear();
   const curMonth = now.getMonth(); // 0..11
-
-  // Карта назв магазинів
-  const storeMap = new Map<string, StoreInput>();
-  const storeByName = new Map<string, StoreInput>();
-  for (const s of stores) {
-    storeMap.set(s.id, s);
-    if (s.name) storeByName.set(s.name.trim().toLowerCase(), s);
-  }
-
-  // Сума за позиціями на випадок, якщо receipt.total не заповнений
-  const receiptItemTotals = new Map<string, number>();
-  for (const item of receiptItems) {
-    if (item.price != null && item.price !== "") {
-      const p = Number(item.price);
-      if (Number.isFinite(p) && p > 0) {
-        receiptItemTotals.set(item.receipt_id, (receiptItemTotals.get(item.receipt_id) ?? 0) + p);
-      }
-    }
-  }
-
-  // Фільтруємо чеки за поточний місяць
-  type StoreStats = { count: number; total: number };
-  const statsByStoreId = new Map<string, StoreStats>();
-
-  for (const r of receipts) {
-    if (!r.purchased_at) continue;
-    const parts = r.purchased_at.split("-");
-    if (parts.length < 2) continue;
-    const y = parseInt(parts[0], 10);
-    const m = parseInt(parts[1], 10) - 1;
-    if (y !== curYear || m !== curMonth) continue;
-
-    let store = r.store_id ? storeMap.get(r.store_id) : undefined;
-    if (!store && r.store_name) {
-      store = storeByName.get(r.store_name.trim().toLowerCase());
-    }
-    if (!store) continue;
-
-    const receiptTotal = r.total != null && r.total !== "" ? Number(r.total) : (receiptItemTotals.get(r.id) ?? 0);
-    const validTotal = Number.isFinite(receiptTotal) && receiptTotal >= 0 ? receiptTotal : 0;
-
-    const cur = statsByStoreId.get(store.id) ?? { count: 0, total: 0 };
-    cur.count += 1;
-    cur.total += validTotal;
-    statsByStoreId.set(store.id, cur);
-  }
+  const itemTotals = computeReceiptItemTotals(receiptItems);
+  const statsByStoreId = aggregateMonthlyStoreStats(stores, receipts, itemTotals, curYear, curMonth);
 
   const summaries: MonthlyStoreSummary[] = [];
 

@@ -2,11 +2,11 @@ import React from "react";
 import type { MonthlyStoreSummary } from "@/lib/prices";
 
 export interface MonthlyStoresSectionProps {
-  monthName: string;
-  summaries: MonthlyStoreSummary[];
+  readonly monthName: string;
+  readonly summaries: readonly MonthlyStoreSummary[];
 }
 
-export function MonthlyStoresSection({ monthName, summaries }: MonthlyStoresSectionProps) {
+export function MonthlyStoresSection({ monthName, summaries }: Readonly<MonthlyStoresSectionProps>) {
   return (
     <section className="box-border p-6 rounded-[18px] bg-surface border border-line flex flex-col gap-2">
       <h2 className="m-0 mb-2 text-[18px] font-bold text-ink">

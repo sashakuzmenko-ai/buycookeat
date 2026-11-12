@@ -3,20 +3,24 @@ import { formatQty } from "@/lib/shopping";
 import { toggleShoppingItem, deleteShoppingItem } from "@/app/(app)/shopping/actions";
 
 export interface ShoppingItemViewData {
-  id: string;
-  title: string | null;
-  quantity: number | null;
-  unit: string | null;
-  store_id: string | null;
-  checked: boolean;
-  stocked_at: string | null;
-  product_id: string | null;
-  productName: string;
-  category: string;
-  estimatedPrice: number | null;
+  readonly id: string;
+  readonly title: string | null;
+  readonly quantity: number | null;
+  readonly unit: string | null;
+  readonly store_id: string | null;
+  readonly checked: boolean;
+  readonly stocked_at: string | null;
+  readonly product_id: string | null;
+  readonly productName: string;
+  readonly category: string;
+  readonly estimatedPrice: number | null;
 }
 
-export function ShoppingItemRow({ item }: { item: ShoppingItemViewData }) {
+export interface ShoppingItemRowProps {
+  readonly item: ShoppingItemViewData;
+}
+
+export function ShoppingItemRow({ item }: Readonly<ShoppingItemRowProps>) {
   return (
     <div className="flex items-center gap-2 py-1 min-h-[46px] border-b border-soft last:border-b-0">
       <form action={toggleShoppingItem} className="min-w-0 flex-1">
@@ -24,8 +28,7 @@ export function ShoppingItemRow({ item }: { item: ShoppingItemViewData }) {
         <input type="hidden" name="checked" value={String(!item.checked)} />
         <button
           type="submit"
-          role="checkbox"
-          aria-checked={item.checked}
+          aria-label={item.checked ? `Позначити некупленим: ${item.productName}` : `Позначити купленим: ${item.productName}`}
           className="flex w-full cursor-pointer items-center gap-3 py-1 text-left text-[15px] group"
         >
           <span

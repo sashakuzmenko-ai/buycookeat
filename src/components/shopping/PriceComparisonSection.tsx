@@ -2,10 +2,10 @@ import React from "react";
 import type { PriceComparisonData } from "@/lib/prices";
 
 export interface PriceComparisonSectionProps {
-  data: PriceComparisonData;
+  readonly data: PriceComparisonData;
 }
 
-export function PriceComparisonSection({ data }: PriceComparisonSectionProps) {
+export function PriceComparisonSection({ data }: Readonly<PriceComparisonSectionProps>) {
   return (
     <section className="box-border p-6 rounded-[18px] bg-surface border border-line flex flex-col gap-2">
       <h2 className="m-0 mb-2 text-[18px] font-bold text-ink">Де що дешевше</h2>

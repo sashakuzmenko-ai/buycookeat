@@ -4,7 +4,11 @@ import React, { useState } from "react";
 import type { StoreGroup } from "./ShoppingDesktopList";
 import { ShoppingItemRow, type ShoppingItemViewData } from "./ShoppingItemRow";
 
-export function ShoppingMobileList({ groups }: { groups: StoreGroup[] }) {
+export interface ShoppingMobileListProps {
+  readonly groups: readonly StoreGroup[];
+}
+
+export function ShoppingMobileList({ groups }: Readonly<ShoppingMobileListProps>) {
   const [selectedStoreIndex, setSelectedStoreIndex] = useState(0);
 
   if (groups.length === 0) {

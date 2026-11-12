@@ -4,14 +4,24 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getContext } from "@/lib/context";
 import { MEAL_TYPES, PRODUCT_CATEGORIES } from "@/lib/seed-data";
-import { autoFill, buildShoppingList, ingredientUsage, type PlanLine, type ProductInfo } from "@/lib/shopping";
+import { autoFill, ingredientUsage } from "@/lib/shopping";
 import { parseWeekParam, weekDays } from "@/lib/dates";
 import { recipeReturnPath } from "@/lib/recipes";
+import {
+  generateShopping as shoppingGenerateShopping,
+  stockBought as shoppingStockBought,
+  toggleShoppingItem as shoppingToggleShoppingItem,
+  addShoppingItem as shoppingAddShoppingItem,
+  createStore,
+} from "./shopping/actions";
 
 // Кожна дія спершу викликає getContext(): без входу — редірект на /login.
 // Доступ до чужих рядків додатково закриває RLS у базі.
 
-const str = (fd: FormData, key: string) => String(fd.get(key) ?? "").trim();
+const str = (fd: FormData, key: string) => {
+  const val = fd.get(key);
+  return typeof val === "string" ? val.trim() : "";
+};
 const num = (fd: FormData, key: string) => {
   const raw = str(fd, key).replace(",", ".");
   return raw === "" ? NaN : Number(raw);
@@ -172,114 +182,12 @@ export async function deleteRecipe(formData: FormData) {
 // ---------- Список покупок ----------
 
 export async function generateShopping(formData: FormData) {
-  const { supabase, householdId, portions } = await getContext();
-  const week = parseWeekParam(str(formData, "week"));
-  const path = weekPath("/shopping", week);
-  const days = weekDays(week);
-
-  const [entries, products, previous, pantry] = await Promise.all([
-    supabase
-      .from("meal_plan_entries")
-      .select("servings, recipes(base_servings, recipe_ingredients(product_id, quantity, optional))")
-      .gte("plan_date", days[0])
-      .lte("plan_date", days[6])
-      .not("recipe_id", "is", null)
-      // приготоване вже списане із запасів — повторно не рахуємо
-      .is("cooked_at", null),
-    supabase.from("products").select("id, unit, is_staple, preferred_store_id"),
-    supabase
-      .from("shopping_list_items")
-      .select("product_id")
-      .eq("week_start", week)
-      .eq("source", "plan")
-      .eq("checked", true)
-      .is("stocked_at", null),
-    supabase.from("pantry_items").select("product_id, quantity"),
-  ]);
-  const firstError = entries.error ?? products.error ?? previous.error ?? pantry.error;
-  if (firstError) fail(path, firstError.message);
-
-  type Row = {
-    servings: number | null;
-    recipes: { base_servings: number; recipe_ingredients: { product_id: string; quantity: number; optional: boolean }[] } | null;
-  };
-  const plan: PlanLine[] = (entries.data as unknown as Row[])
-    .filter((e) => e.recipes)
-    .map((e) => ({
-      servings: e.servings === null ? null : Number(e.servings),
-      baseServings: Number(e.recipes!.base_servings),
-      ingredients: e.recipes!.recipe_ingredients.map((i) => ({
-        productId: i.product_id,
-        quantity: Number(i.quantity),
-        optional: i.optional,
-      })),
-    }));
-  const productMap = new Map<string, ProductInfo>(
-    products.data!.map((p) => [p.id as string, { unit: p.unit, isStaple: p.is_staple, storeId: p.preferred_store_id }]),
-  );
-  const stock = new Map(pantry.data!.map((p) => [p.product_id as string, Number(p.quantity)]));
-  const lines = buildShoppingList(plan, portions, productMap, stock);
-  // куплене, але ще не перенесене в запаси, лишається відміченим після перерахунку
-  const bought = new Set(previous.data!.map((r) => r.product_id as string));
-
-  // позиції, вже перенесені в запаси, лишаємо як історію покупок тижня
-  const del = await supabase
-    .from("shopping_list_items")
-    .delete()
-    .eq("household_id", householdId)
-    .eq("week_start", week)
-    .eq("source", "plan")
-    .is("stocked_at", null);
-  if (del.error) fail(path, del.error.message);
-  if (lines.length) {
-    const { error } = await supabase.from("shopping_list_items").insert(
-      lines.map((l) => ({
-        household_id: householdId,
-        week_start: week,
-        product_id: l.productId,
-        quantity: l.quantity,
-        unit: l.unit,
-        store_id: l.storeId,
-        source: "plan",
-        checked: bought.has(l.productId),
-      })),
-    );
-    if (error) fail(path, error.message);
-  }
-  revalidatePath("/shopping");
-  if (!plan.length) fail(path, "У меню на цей тиждень немає неприготованих страв з рецептами");
-  if (!lines.length) redirect(`${path}&info=${encodeURIComponent("Усе потрібне на цей тиждень уже є в запасах")}`);
+  return shoppingGenerateShopping(formData);
 }
 
 /** Куплені (відмічені) позиції з продуктом переносить у запаси — кожну лише один раз. */
 export async function stockBought(formData: FormData) {
-  const { supabase, householdId } = await getContext();
-  const week = parseWeekParam(str(formData, "week"));
-  const path = weekPath("/shopping", week);
-  // спершу позначаємо, потім додаємо: повторний клік не подвоїть запаси
-  const { data, error } = await supabase
-    .from("shopping_list_items")
-    .update({ stocked_at: new Date().toISOString() })
-    .eq("household_id", householdId)
-    .eq("week_start", week)
-    .eq("checked", true)
-    .is("stocked_at", null)
-    .not("product_id", "is", null)
-    .not("quantity", "is", null)
-    .select("id, product_id, quantity");
-  if (error) fail(path, error.message);
-  if (data!.length) {
-    const rpc = await supabase.rpc("adjust_pantry", {
-      p_household_id: householdId,
-      p_items: data!.map((r) => ({ product_id: r.product_id, delta: Number(r.quantity) })),
-    });
-    if (rpc.error) {
-      await supabase.from("shopping_list_items").update({ stocked_at: null }).in("id", data!.map((r) => r.id));
-      fail(path, rpc.error.message);
-    }
-  }
-  revalidatePath("/shopping");
-  revalidatePath("/pantry");
+  return shoppingStockBought(formData);
 }
 
 // ---------- Запаси ----------
@@ -379,27 +287,11 @@ export async function setCooked(formData: FormData) {
 }
 
 export async function toggleShoppingItem(formData: FormData) {
-  const { supabase } = await getContext();
-  const id = uuidOrNull(str(formData, "id"));
-  if (id) await supabase.from("shopping_list_items").update({ checked: str(formData, "checked") === "true" }).eq("id", id);
-  revalidatePath("/shopping");
+  return shoppingToggleShoppingItem(formData);
 }
 
 export async function addShoppingItem(formData: FormData) {
-  const { supabase, householdId } = await getContext();
-  const week = parseWeekParam(str(formData, "week"));
-  const path = weekPath("/shopping", week);
-  const title = str(formData, "title");
-  if (!title) fail(path, "Вкажіть, що купити");
-  const { error } = await supabase.from("shopping_list_items").insert({
-    household_id: householdId,
-    week_start: week,
-    title,
-    store_id: uuidOrNull(str(formData, "store_id")),
-    source: "manual",
-  });
-  if (error) fail(path, error.message);
-  revalidatePath("/shopping");
+  return shoppingAddShoppingItem(formData);
 }
 
 // ---------- Довідники ----------
@@ -450,24 +342,7 @@ export async function updateFamilyMember(formData: FormData) {
 }
 
 export async function addStore(formData: FormData) {
-  const { supabase, householdId } = await getContext();
-  const name = str(formData, "name");
-  if (!name) fail("/settings", "Вкажіть назву магазину");
-  const access = str(formData, "access");
-  const frequency = str(formData, "visit_frequency");
-  const { error } = await supabase.from("stores").insert({
-    household_id: householdId,
-    name,
-    access: ["walk", "drive", "delivery"].includes(access) ? access : "walk",
-    kind: access === "delivery" ? "delivery" : "supermarket",
-    visit_frequency: ["daily", "weekly", "rare"].includes(frequency) ? frequency : "daily",
-    phone: str(formData, "phone") || null,
-    url: str(formData, "url") || null,
-    notes: str(formData, "notes") || null,
-    sort_order: 100,
-  });
-  if (error) fail("/settings", error.message);
-  revalidatePath("/settings");
+  return createStore(formData);
 }
 
 export async function addEquipment(formData: FormData) {

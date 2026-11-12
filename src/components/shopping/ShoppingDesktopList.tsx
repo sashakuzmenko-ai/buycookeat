@@ -2,14 +2,18 @@ import React from "react";
 import { ShoppingItemRow, type ShoppingItemViewData } from "./ShoppingItemRow";
 
 export interface StoreGroup {
-  storeId: string | null;
-  storeName: string;
-  items: ShoppingItemViewData[];
-  estimatedSum: number;
-  hasPricedItems: boolean;
+  readonly storeId: string | null;
+  readonly storeName: string;
+  readonly items: readonly ShoppingItemViewData[];
+  readonly estimatedSum: number;
+  readonly hasPricedItems: boolean;
 }
 
-export function ShoppingDesktopList({ groups }: { groups: StoreGroup[] }) {
+export interface ShoppingDesktopListProps {
+  readonly groups: readonly StoreGroup[];
+}
+
+export function ShoppingDesktopList({ groups }: Readonly<ShoppingDesktopListProps>) {
   if (groups.length === 0) {
     return (
       <div className="p-8 text-center text-ink-2 bg-surface rounded-[18px] border border-line">
