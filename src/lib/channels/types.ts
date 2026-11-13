@@ -23,6 +23,8 @@ export type InboundMessage = {
   /** null — це не /start; порожній рядок — /start без коду. */
   startCode: string | null;
   oversized: boolean;
+  mentionsBot: boolean;
+  repliesToBot: boolean;
 };
 
 export type ButtonPress = {

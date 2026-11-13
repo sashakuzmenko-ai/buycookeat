@@ -1,11 +1,23 @@
 import { after, NextResponse } from "next/server";
 import { missingBotEnv, webhookSecretOk } from "@/lib/channels/access";
 import { handleTelegramUpdate } from "@/lib/channels/turn";
-import { createTelegramChannel } from "@/lib/channels/telegram";
+import { createTelegramChannel, lookupBotUsername } from "@/lib/channels/telegram";
 import { createServiceClient } from "@/lib/supabase/admin";
 import { SUPABASE_URL } from "@/lib/supabase/server";
 
 export const maxDuration = 60;
+
+let cachedBotUsername: string | null | undefined;
+
+async function resolveBotUsername(token: string): Promise<string | null> {
+  if (cachedBotUsername !== undefined) return cachedBotUsername;
+  try {
+    cachedBotUsername = await lookupBotUsername(token);
+  } catch {
+    cachedBotUsername = null;
+  }
+  return cachedBotUsername;
+}
 
 function botEnv() {
   return {
@@ -42,7 +54,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Бот не налаштовано. Додайте SUPABASE_SECRET_KEY." }, { status: 503 });
   }
   const origin = new URL(request.url).origin;
-  const channel = createTelegramChannel(token);
+  const botUsername = await resolveBotUsername(token);
+  const channel = createTelegramChannel(token, fetch, botUsername);
   const apiKey = process.env.OPENROUTER_API_KEY ?? "";
   const model = process.env.OPENROUTER_MODEL;
   after(async () => {
