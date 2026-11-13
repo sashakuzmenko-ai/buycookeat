@@ -76,7 +76,7 @@ export function ClarifyDialog({
     <dialog
       ref={dialogRef}
       onClose={onClose}
-      className="fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-md rounded-18 border border-line bg-surface p-6 text-ink shadow-xl backdrop:bg-ink/50"
+      className="fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-md rounded-18 border border-line bg-surface p-6 text-ink backdrop:bg-ink/50"
     >
       <div className="flex items-center justify-between border-b border-line pb-4">
         <h2 className="font-display text-lg font-bold">Уточнити позицію</h2>

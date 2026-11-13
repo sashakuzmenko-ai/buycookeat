@@ -55,7 +55,7 @@ export function Segmented<T extends string = string>({
             }
             className={`min-h-[44px] px-4 py-2 rounded-[10px] text-[14px] font-semibold transition-all duration-150 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-40 ${
               selected
-                ? "bg-surface text-ink shadow-sm"
+                ? "bg-surface text-ink border border-line"
                 : "text-ink-2 hover:text-ink hover:bg-ground/60"
             }`}
           >

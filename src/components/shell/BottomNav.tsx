@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MORE_NAV_ITEMS, isRouteActive, isMoreActive } from "./nav-items";
 import { signOut } from "@/app/auth-actions";
+import { BASE_COLORS, MODULE_THEMES } from "../ui/tokens";
 
 export interface BottomNavProps {
   readonly household: {
@@ -35,7 +36,7 @@ function BottomNavTab({ href, label, iconPath, active }: Readonly<BottomNavTabPr
         height={22}
         viewBox="0 0 24 24"
         fill="none"
-        stroke={active ? "#14201A" : "#4A5750"}
+        stroke={active ? BASE_COLORS.ink : BASE_COLORS.ink2}
         strokeWidth={active ? 2 : 1.8}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -88,7 +89,7 @@ function MoreDrawer({ household, pathname, onClose }: Readonly<MoreDrawerProps>)
       />
 
       {/* Вміст шторки */}
-      <div className="fixed bottom-0 inset-x-0 z-50 bg-surface rounded-t-[22px] border-t border-line p-5 pb-8 max-h-[85vh] overflow-y-auto flex flex-col gap-4 shadow-2xl">
+      <div className="fixed bottom-0 inset-x-0 z-50 bg-surface rounded-t-[22px] border-t border-line-strong p-5 pb-8 max-h-[85vh] overflow-y-auto flex flex-col gap-4">
         {/* Ручка шторки */}
         <div className="w-10 h-1 bg-track rounded-full mx-auto -mt-1" aria-hidden="true" />
 
@@ -228,7 +229,7 @@ export function BottomNav({ household }: Readonly<BottomNavProps>) {
             height={24}
             viewBox="0 0 24 24"
             fill="none"
-            stroke="#C8F169"
+            stroke={MODULE_THEMES.scan.accent}
             strokeWidth={2}
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -263,7 +264,7 @@ export function BottomNav({ household }: Readonly<BottomNavProps>) {
             height={22}
             viewBox="0 0 24 24"
             fill="none"
-            stroke={moreSectionActive || isMoreOpen ? "#14201A" : "#4A5750"}
+            stroke={moreSectionActive || isMoreOpen ? BASE_COLORS.ink : BASE_COLORS.ink2}
             strokeWidth={2.6}
             strokeLinecap="round"
           >

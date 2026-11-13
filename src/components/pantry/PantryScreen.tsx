@@ -246,7 +246,7 @@ export function PantryScreen({
                 onClick={() => setMobileZone(zone)}
                 className={`flex min-h-[44px] flex-1 items-center justify-center rounded-12 px-2 text-xs font-semibold whitespace-nowrap transition-all duration-150 ${
                   isSelected
-                    ? "bg-pantry text-white shadow-xs"
+                    ? "bg-pantry text-white"
                     : "bg-transparent text-pantry-ink hover:bg-surface/50"
                 }`}
               >

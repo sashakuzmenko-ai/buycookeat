@@ -78,7 +78,7 @@ export function MemberCard({ member, onEdit, isMobileCompact = false }: MemberCa
 
   // Повнорозмірна картка для комп'ютера за зразком WebFamily.dc.html
   return (
-    <section className="flex flex-col gap-4 rounded-[22px] border border-line bg-surface p-5 transition-shadow hover:shadow-xs">
+    <section className="flex flex-col gap-4 rounded-[22px] border border-line bg-surface p-5 transition-colors hover:border-line-strong">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div
