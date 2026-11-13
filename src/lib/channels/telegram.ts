@@ -3,6 +3,7 @@
 // getFile: завантаження до 20 МБ; цей канал ріже раніше через ліміт тіла Vercel 4,5 МБ.
 // sendMessage: inline_keyboard, callback_data до 64 байт. answerCallbackQuery гасить спінер.
 
+import { readLimited } from "../http/read-limited.ts";
 import { SCAN_LIMITS } from "../scan-types.ts";
 import { QUICK_HINTS } from "./copy.ts";
 import type {
@@ -293,35 +294,6 @@ function keyboard(message: OutboundMessage): Json | undefined {
     };
   }
   return undefined;
-}
-
-async function readLimited(response: Response, max: number): Promise<Uint8Array | "too-large"> {
-  const declared = Number(response.headers.get("content-length") ?? 0);
-  if (declared > max) return "too-large";
-  const reader = response.body?.getReader();
-  if (!reader) {
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    return bytes.byteLength > max ? "too-large" : bytes;
-  }
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  while (true) {
-    const step = await reader.read();
-    if (step.done) break;
-    total += step.value.byteLength;
-    if (total > max) {
-      await reader.cancel();
-      return "too-large";
-    }
-    chunks.push(step.value);
-  }
-  const out = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    out.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return out;
 }
 
 export function createTelegramChannel(token: string, fetchImpl: typeof fetch = fetch, botUsername?: string | null): ScanChannel {

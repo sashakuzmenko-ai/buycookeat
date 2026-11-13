@@ -1,5 +1,9 @@
 // Імпорт чернетки рецепта з веб-сторінки через OpenRouter.
 
+import { productByListNumber } from "../catalog/product-number.ts";
+import { checkPublicHttpUrl, fetchPublicHttpResponse, PublicFetchError } from "../http/public-url.ts";
+import { readLimited } from "../http/read-limited.ts";
+import { openRouterJsonChat } from "../openrouter/json-chat.ts";
 import { MEAL_TYPES } from "../seed-data.ts";
 import { cleanUnit, productKey, roundScanQty } from "../scan/products.ts";
 
@@ -71,82 +75,9 @@ export class ImportRecipeError extends Error {
   }
 }
 
-function ipv4Private(host: string): boolean {
-  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
-  if (!m) return false;
-  const a = Number(m[1]);
-  const b = Number(m[2]);
-  if (a === 127) return true;
-  if (a === 10) return true;
-  if (a === 192 && b === 168) return true;
-  if (a === 169 && b === 254) return true;
-  if (a === 172 && b >= 16 && b <= 31) return true;
-  return false;
-}
-
-function hostBlocked(hostname: string): boolean {
-  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
-  if (host === "localhost" || host === "::1" || host.endsWith(".localhost")) return true;
-  if (hostname.toLowerCase() === "[::1]") return true;
-  return ipv4Private(host);
-}
-
-function portAllowed(url: URL): boolean {
-  if (!url.port) return true;
-  if (url.protocol === "http:" && url.port === "80") return true;
-  if (url.protocol === "https:" && url.port === "443") return true;
-  return false;
-}
-
 /** Дозволені лише публічні http(s) URL без нестандартних портів. */
 export function checkRecipeUrl(raw: string): { ok: true; url: URL } | { ok: false; error: string } {
-  const trimmed = raw.trim();
-  if (!trimmed) return { ok: false, error: "Вкажіть адресу сторінки з рецептом" };
-  let url: URL;
-  try {
-    url = new URL(trimmed);
-  } catch {
-    return { ok: false, error: "Некоректна адреса" };
-  }
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    return { ok: false, error: "Підтримуються лише адреси http або https" };
-  }
-  if (hostBlocked(url.hostname)) {
-    return { ok: false, error: "Локальні й приватні адреси заборонені" };
-  }
-  if (!portAllowed(url)) {
-    return { ok: false, error: "Дозволені лише стандартні порти (80 і 443)" };
-  }
-  return { ok: true, url };
-}
-
-async function readLimited(response: Response, max: number): Promise<Uint8Array | "too-large"> {
-  const declared = Number(response.headers.get("content-length") ?? 0);
-  if (declared > max) return "too-large";
-  const reader = response.body?.getReader();
-  if (!reader) {
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    return bytes.byteLength > max ? "too-large" : bytes;
-  }
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  while (true) {
-    const step = await reader.read();
-    if (step.done) break;
-    total += step.value.byteLength;
-    if (total > max) {
-      await reader.cancel();
-      return "too-large";
-    }
-    chunks.push(step.value);
-  }
-  const out = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    out.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return out;
+  return checkPublicHttpUrl(raw);
 }
 
 export function htmlToPlainText(html: string): string {
@@ -167,12 +98,12 @@ export function htmlToPlainText(html: string): string {
 export async function fetchRecipePage(url: URL, fetchImpl: typeof fetch = fetch): Promise<string> {
   let response: Response;
   try {
-    response = await fetchImpl(url.toString(), {
+    response = await fetchPublicHttpResponse(url, fetchImpl, {
       headers: { Accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8", "User-Agent": "CookAndEat/1.0 (+recipe-import)" },
       signal: AbortSignal.timeout(25_000),
-      redirect: "follow",
     });
   } catch (error) {
+    if (error instanceof PublicFetchError) throw new ImportRecipeError(error.status, error.message);
     const timedOut = error instanceof Error && error.name === "TimeoutError";
     throw new ImportRecipeError(504, timedOut ? "Сторінка відповідає надто довго" : "Не вдалося завантажити сторінку");
   }
@@ -203,12 +134,6 @@ ${list || "(порожній)"}`;
 
 type ModelRow = Record<string, unknown>;
 
-function matchedProduct(row: ModelRow, products: readonly CatalogProduct[]): CatalogProduct | null {
-  const number = Number(row.product_number);
-  if (!Number.isInteger(number) || number < 1 || number > products.length) return null;
-  return products[number - 1] ?? null;
-}
-
 function readDraftItem(
   row: ModelRow,
   products: readonly CatalogProduct[],
@@ -220,7 +145,7 @@ function readDraftItem(
   const optional = Boolean(row.optional);
   const unit = cleanUnit(row.unit);
   const qty = roundScanQty(quantity);
-  const matched = matchedProduct(row, products);
+  const matched = productByListNumber(row.product_number, products);
   const name = String(row.name ?? "").trim().slice(0, 80);
   const productId = matched?.id ?? (name ? byName.get(productKey(name)) : undefined);
   if (productId) {
@@ -267,28 +192,6 @@ export function normalizeRecipeDraft(parsed: unknown, products: readonly Catalog
   };
 }
 
-type OpenRouterPayload = {
-  error?: { message?: string };
-  choices?: { message?: { content?: string }; finish_reason?: string }[];
-};
-
-function readModelText(payload: OpenRouterPayload): string {
-  const text = payload.choices?.[0]?.message?.content;
-  if (text) return text;
-  throw new ImportRecipeError(502, "Модель повернула порожню відповідь");
-}
-
-function parseModelJson(text: string, finishReason: string | undefined): unknown {
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw new ImportRecipeError(
-      502,
-      finishReason === "length" ? "Відповідь обрізано — сторінка надто велика" : "Модель повернула некоректні дані",
-    );
-  }
-}
-
 export type ImportRecipeDraftInput = {
   url: URL;
   products: readonly CatalogProduct[];
@@ -302,42 +205,18 @@ export async function importRecipeDraft(input: ImportRecipeDraftInput): Promise<
   const call = input.fetchImpl ?? fetch;
   const pageText = await fetchRecipePage(input.url, call);
   const model = input.model || process.env.OPENROUTER_MODEL || "google/gemini-3.8-flash";
-
-  let response: Response;
-  try {
-    response = await call("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${input.apiKey}`,
-        "Content-Type": "application/json",
-        "X-Title": "Cook & Eat",
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 6000,
-        reasoning: { effort: "low" },
-        response_format: { type: "json_schema", json_schema: { name: "recipe_draft", strict: true, schema: SCHEMA } },
-        messages: [
-          { role: "system", content: buildRecipePrompt(input.products) },
-          {
-            role: "user",
-            content: `URL: ${input.url.toString()}\n\nТекст сторінки:\n${pageText}`,
-          },
-        ],
-      }),
-      signal: AbortSignal.timeout(55_000),
-    });
-  } catch (error) {
-    const timedOut = error instanceof Error && error.name === "TimeoutError";
-    throw new ImportRecipeError(504, timedOut ? "Модель відповідає надто довго" : "Не вдалося зв'язатися з OpenRouter");
-  }
-
-  const payload = (await response.json().catch(() => null)) as OpenRouterPayload | null;
-  if (!response.ok || !payload || payload.error) {
-    const reason = payload?.error?.message ?? `HTTP ${response.status}`;
-    throw new ImportRecipeError(502, `OpenRouter (${model}): ${reason}`);
-  }
-  const raw = readModelText(payload);
-  const parsed = parseModelJson(raw, payload.choices?.[0]?.finish_reason);
+  const { parsed } = await openRouterJsonChat(
+    {
+      apiKey: input.apiKey,
+      model,
+      schemaName: "recipe_draft",
+      schema: SCHEMA as unknown as Record<string, unknown>,
+      system: buildRecipePrompt(input.products),
+      user: `URL: ${input.url.toString()}\n\nТекст сторінки:\n${pageText}`,
+      maxTokens: 6000,
+      fetchImpl: call,
+    },
+    (status, message) => new ImportRecipeError(status, message),
+  );
   return normalizeRecipeDraft(parsed, input.products);
 }
