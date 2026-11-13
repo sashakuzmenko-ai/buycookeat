@@ -121,12 +121,20 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recipes"
           <p className="text-sm font-semibold text-recipes">Рецепти</p>
           <h1 className="font-display text-2xl font-bold tracking-tight text-ink md:text-[28px]">Наша кулінарна книга</h1>
         </div>
-        <Link
-          href="/recipes/new"
-          className="inline-flex min-h-[44px] items-center justify-center rounded-12 bg-recipes px-[18px] text-[15px] font-semibold text-white no-underline hover:opacity-90"
-        >
-          Новий рецепт
-        </Link>
+        <div className="flex flex-wrap gap-2.5">
+          <Link
+            href="/recipes/import"
+            className="inline-flex min-h-[44px] items-center justify-center rounded-12 border border-line-strong bg-surface px-[18px] text-[15px] font-semibold text-ink no-underline hover:border-line"
+          >
+            Імпорт за посиланням
+          </Link>
+          <Link
+            href="/recipes/new"
+            className="inline-flex min-h-[44px] items-center justify-center rounded-12 bg-recipes px-[18px] text-[15px] font-semibold text-white no-underline hover:opacity-90"
+          >
+            Новий рецепт
+          </Link>
+        </div>
       </div>
 
       <Notice params={params} />

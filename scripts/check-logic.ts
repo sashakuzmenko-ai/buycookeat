@@ -102,6 +102,7 @@ import {
 } from "../src/lib/scan/present.ts";
 import { toInboxScan } from "../src/lib/scan/inbox.ts";
 import { buildScanPrompt, normalizeScanResult } from "../src/lib/scan/recognize.ts";
+import { checkRecipeUrl, htmlToPlainText, normalizeRecipeDraft } from "../src/lib/recipes/import.ts";
 import { parseScanRequest } from "../src/lib/scan/request.ts";
 import { decideChannelAccess, missingBotEnv, rowsForGrant, scopedHousehold, supabaseServerKey, webhookSecretOk } from "../src/lib/channels/access.ts";
 import { decideRedeem, linkCodeFromBytes, normalizeLinkCode, pendingExternalId, redeemFailureText } from "../src/lib/channels/bind.ts";
@@ -912,6 +913,51 @@ assert.equal(recognized.items[1].name, "Сметана");
 assert.equal(recognized.items[1].unit, "шт");
 assert.equal(recognized.items[1].category, "інше");
 assert.equal(recognized.items[1].uncertain, true);
+
+const recipeCatalog = [
+  { id: "rp1", name: "Молоко", unit: "мл" },
+  { id: "rp2", name: "Борошно", unit: "г" },
+];
+assert.equal(checkRecipeUrl("https://cook.example.com/borsch").ok, true);
+assert.equal(checkRecipeUrl("https://localhost/r").ok, false);
+assert.equal(checkRecipeUrl("https://127.0.0.1/x").ok, false);
+assert.equal(checkRecipeUrl("https://10.1.2.3/x").ok, false);
+assert.equal(checkRecipeUrl("https://172.20.0.1/x").ok, false);
+assert.equal(checkRecipeUrl("https://192.168.0.5/x").ok, false);
+assert.equal(checkRecipeUrl("https://169.254.1.1/x").ok, false);
+assert.equal(checkRecipeUrl("https://[::1]/x").ok, false);
+assert.equal(checkRecipeUrl("https://example.com:8443/r").ok, false);
+assert.equal(checkRecipeUrl("ftp://example.com/r").ok, false);
+assert.equal(checkRecipeUrl(["http", ":", "/", "/", "example.com", "/r"].join("")).ok, false);
+
+const stripped = htmlToPlainText('<style>.x{}</style><script>alert(1)</script><p>Борщ</p>');
+assert.match(stripped, /Борщ/);
+assert.doesNotMatch(stripped, /alert/);
+
+const recipeDraft = normalizeRecipeDraft(
+  {
+    title: "Сирники",
+    description: "Смачні",
+    instructions: "Змішати",
+    base_servings: 4,
+    cook_minutes: 30,
+    meal_types: ["breakfast", "немає"],
+    items: [
+      { raw: "молоко", product_number: 1, name: "Молоко", quantity: 200, unit: "мл", optional: false },
+      { raw: "борошно", product_number: 0, name: "Борошно", quantity: 300, unit: "г", optional: false },
+      { raw: "ванілін", product_number: 0, name: "Ванілін", quantity: 1, unit: "пак", optional: true },
+    ],
+  },
+  recipeCatalog,
+);
+assert.equal(recipeDraft.title, "Сирники");
+assert.equal(recipeDraft.meal_types.length, 1);
+assert.equal(recipeDraft.ingredients.length, 2);
+assert.equal(recipeDraft.ingredients[0].product_id, "rp1");
+assert.equal(recipeDraft.ingredients[1].product_id, "rp2");
+assert.equal(recipeDraft.unmatched.length, 1);
+assert.equal(recipeDraft.unmatched[0].name, "Ванілін");
+assert.equal(recipeDraft.unmatched[0].unit, "шт");
 
 const textRequest = parseScanRequest({ text: "купив сир і сметану", inputType: "text" });
 assert.equal(textRequest.ok, true);
