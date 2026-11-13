@@ -105,9 +105,16 @@ export function formatScanDay(iso: string): string {
   return `${when.day}.${when.month}.${when.year}`;
 }
 
-export function queueTitle(inputType: string, storeName: string | null, channel: string): string {
+export function queueTitle(
+  inputType: string,
+  storeName: string | null,
+  channel: string,
+  senderName?: string | null,
+): string {
   const tail = storeName?.trim() || channelLabel(channel);
-  return `${inputTypeLabel(inputType)} · ${tail}`;
+  const sender = senderName?.trim();
+  const fromSender = sender ? ` · від ${sender.slice(0, 40)}` : "";
+  return `${inputTypeLabel(inputType)} · ${tail}${fromSender}`;
 }
 
 export function queueNote(count: number, total: number | null, channel: string): string {

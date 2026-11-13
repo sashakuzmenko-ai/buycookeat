@@ -1,39 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Cook & Eat
 
-## Getting Started
+Сімейний застосунок для планування меню на тиждень, збереження рецептів, обліку залишків на складі, списку покупок, розподілу витрат і розпізнавання сканів (чеки, голосові повідомлення, відео полиць/холодильника, скріншоти замовлень, довільний текст) із Telegram-ботом як окремим каналом швидкого вводу.
 
-First, run the development server:
+Застосунок має вісім розділів: **Огляд**, **Меню**, **Рецепти**, **Склад**, **Магазини**, **Фінанси**, **Сім'я**, **Скан**.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Стек і структура
+
+- **Стек**: Next.js 16 (App Router, серверні дії), React 19, Supabase (PostgreSQL + Auth + Row Level Security), Tailwind CSS 4, OpenRouter для розпізнавання.
+- **Структура проєкту**:
+  - `src/app/` — маршрути сторінок, API (`/api/scan`, `/api/telegram/webhook`) та серверні дії.
+  - `src/components/` — UI-компоненти розділів, дизайн-токени (`tokens.ts`) та спільні елементи інтерфейсу.
+  - `src/lib/` — чиста бізнес-логіка (`menu`, `shopping`, `finance`, `pantry`, `scan`, `channels`) та клієнти Supabase.
+  - `supabase/migrations/` — SQL-міграції бази даних.
+  - `scripts/` — перевірочні скрипти (`check-sql.mjs` на PGlite, `check-logic.ts`).
+  - `docs/design/` — концепт і специфікації інтерфейсу (джерело правди для вигляду).
+  - `wiki/tasks/` — картки та історія виконання задач.
+
+## Змінні середовища
+
+Для локальної розробки створіть файл `.env.local`:
+
+```env
+# Supabase: публічні клієнтські ключі
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+
+# Supabase: серверний секретний ключ (без префікса NEXT_PUBLIC_)
+SUPABASE_SECRET_KEY=sb_secret_your-secret-key
+
+# OpenRouter: мультимодальне розпізнавання сканів
+OPENROUTER_API_KEY=sk-or-v1-your-openrouter-key
+# OPENROUTER_MODEL=google/gemini-3.8-flash # необов'язково, за замовчуванням google/gemini-3.8-flash
+
+# Telegram-бот: токен і секретний токен для webhook
+TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrSTUvwxYZ
+TELEGRAM_WEBHOOK_SECRET=your-random-webhook-secret
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+> **Production у Vercel**: обов'язково налаштуйте `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `OPENROUTER_API_KEY`, `TELEGRAM_BOT_TOKEN` та `TELEGRAM_WEBHOOK_SECRET`. Змінна `OPENROUTER_MODEL` необов'язкова (є значення за замовчуванням).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Запуск і розробка
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+# Встановлення залежностей
+npm install
 
-## Learn More
+# Запуск локального сервера розробки
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+Застосунок буде доступний за адресою [http://localhost:3000](http://localhost:3000).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### База даних і міграції
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Міграції знаходяться в теці `supabase/migrations/` і виконуються **вручну в Supabase → SQL Editor** у порядку назв файлів. Процес збірки їх не застосовує.
 
-## Deploy on Vercel
+Команда `npm run check` автоматично проганяє міграції на вбудованому рушії **PGlite** (без потреби в Docker чи сторонніх сервісах) та перевіряє політики безпеки RLS і чисту бізнес-логіку.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Перевірки перед PR
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Перед відкриттям PR обов'язково мають успішно проходити три перевірки:
+
+```bash
+npm run lint   # Перевірка стилю коду та правил через ESLint
+npm run check  # Запуск check-sql.mjs на PGlite і check-logic.ts
+npm run build  # Повна збірка застосунку
+```
 
 ## Telegram-бот
 
@@ -53,3 +85,9 @@ curl -sS -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
 ```
 
 Прив'язка: у розділі «Сім'я» згенеруйте код і надішліть боту `/start код`. Код діє 20 хвилин і гаситься після використання. `getFile` у Telegram віддає файли до 20 МБ; бот відмовляє від файлів понад близько 4 МБ, бо більше не проходить через ліміт функції.
+
+## Посилання
+
+- [docs/plan.md](docs/plan.md) — план робіт та етапи проєкту.
+- [docs/design/README.md](docs/design/README.md) — опис концепту та дизайн-системи.
+- [AGENTS.md](AGENTS.md) — правила розробки для ШІ-агентів.

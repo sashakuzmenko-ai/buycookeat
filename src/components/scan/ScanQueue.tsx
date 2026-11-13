@@ -50,7 +50,9 @@ export function ScanQueue({
             >
               <span className={`w-12 shrink-0 font-mono text-xs ${sub}`}>{formatScanWhen(scan.createdAt, now)}</span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[15px] font-semibold">{queueTitle(scan.inputType, store, scan.channel)}</span>
+                <span className="block truncate text-[15px] font-semibold">
+                  {queueTitle(scan.inputType, store, scan.channel, scan.senderName)}
+                </span>
                 <span className={`block truncate text-[13px] ${sub}`}>
                   {queueNote(scan.items.length, scan.total, scan.channel)}
                 </span>
