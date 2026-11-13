@@ -618,3 +618,63 @@ export function formatQuantity(quantity: number | null, unit: string | null): st
   const text = quantity.toLocaleString("uk-UA", { maximumFractionDigits: 2 });
   return unit ? `${text} ${unit}` : text;
 }
+
+const MONTHS_LOCATIVE = [
+  "січні",
+  "лютому",
+  "березні",
+  "квітні",
+  "травні",
+  "червні",
+  "липні",
+  "серпні",
+  "вересні",
+  "жовтні",
+  "листопаді",
+  "грудні",
+] as const;
+
+export function monthLocativeUk(iso: string): string {
+  const monthIndex = Number(iso.slice(5, 7)) - 1;
+  return MONTHS_LOCATIVE[monthIndex] ?? "";
+}
+
+/**
+ * Різниця між фактичними витратами та очікуваними за темпом місячного бюджету.
+ * Позитивне число — перевищення темпу, негативне — економія.
+ * null, якщо бюджет не задано або минуло 0 днів.
+ */
+export function paceDifference(
+  spent: number,
+  budget: number | null,
+  elapsedDays: number,
+  totalDays: number,
+): number | null {
+  if (budget === null || !(budget > 0) || !(totalDays > 0) || !(elapsedDays > 0)) return null;
+  const expected = (budget / totalDays) * elapsedDays;
+  return Math.round((spent - expected) * 100) / 100;
+}
+
+export function paceDifferenceNote(diff: number | null): string | null {
+  if (diff === null) return null;
+  const abs = Math.abs(diff);
+  if (abs < 0.5) return "за темпом";
+  return diff > 0 ? `на ${formatUah(abs)} вище темпу` : `на ${formatUah(abs)} нижче темпу`;
+}
+
+export function chartWeekLabel(start: string, today: string): string {
+  const isCurrentWeek = weekStart(today) === weekStart(start);
+  const end = isCurrentWeek ? today : addDays(start, 6);
+  const startDay = Number(start.slice(8, 10));
+  const endDay = Number(end.slice(8, 10));
+  const startMonth = (MONTH_SHORT[Number(start.slice(5, 7)) - 1] ?? "").toLowerCase();
+  const endMonth = (MONTH_SHORT[Number(end.slice(5, 7)) - 1] ?? "").toLowerCase();
+
+  const range =
+    start.slice(5, 7) === end.slice(5, 7)
+      ? `${startDay}–${endDay} ${startMonth}`
+      : `${startDay} ${startMonth} – ${endDay} ${endMonth}`;
+
+  return isCurrentWeek ? `${range} · триває` : range;
+}
+
