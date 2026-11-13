@@ -1,4 +1,6 @@
-import { useId, type ReactNode } from "react";
+"use client";
+
+import { useId, useState, useTransition, type ReactNode } from "react";
 import Link from "next/link";
 import { Button, Card, StatusChip } from "@/components/ui";
 import { addDays, formatDate, formatWeekday } from "@/lib/dates";
@@ -13,7 +15,7 @@ import {
 } from "@/lib/menu";
 import { MEAL_LABELS } from "@/lib/seed-data";
 import { addPlanEntry, autoFillWeek, clearWeek, removePlanEntry, setCooked } from "@/app/(app)/actions";
-import { replacePlanEntry } from "@/app/(app)/menu/actions";
+import { movePlanEntry, replacePlanEntry } from "@/app/(app)/menu/actions";
 
 export type RecipeChoice = {
   readonly id: string;
@@ -85,7 +87,7 @@ const cardSummaryClass =
   "flex min-h-11 w-full cursor-pointer list-none items-center justify-center rounded-12 border border-line-strong bg-surface px-1.5 text-center text-[13px] font-semibold whitespace-normal text-ink [&::-webkit-details-marker]:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2";
 const cardButtonClass = "w-full !px-1.5 !text-[13px] whitespace-normal text-center";
 const dashedSummaryClass =
-  "flex min-h-[148px] w-full cursor-pointer list-none items-center justify-center rounded-18 border border-dashed border-line-strong bg-transparent px-3 text-center text-sm font-semibold text-brand [&::-webkit-details-marker]:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2";
+  "flex min-h-[148px] w-full cursor-pointer list-none items-center justify-center rounded-18 border border-dashed border-line-strong bg-transparent px-3 text-center text-sm font-semibold text-brand [&::-webkit-details-marker]:hidden hover:border-brand hover:bg-menu-tint/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2";
 const mobileDashedClass =
   "flex min-h-20 w-full cursor-pointer list-none items-center justify-center rounded-[20px] border border-dashed border-line-strong bg-transparent px-3 text-center text-sm font-semibold text-brand [&::-webkit-details-marker]:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2";
 
@@ -460,12 +462,71 @@ function RecipePicker({
   );
 }
 
+function MovePicker({
+  id,
+  week,
+  meal,
+  days,
+  title,
+  summaryClassName,
+  compact = false,
+}: {
+  readonly id: string;
+  readonly week: string;
+  readonly meal: string;
+  readonly days: readonly string[];
+  readonly title: string;
+  readonly summaryClassName: string;
+  readonly compact?: boolean;
+}) {
+  const selectId = useId();
+  return (
+    <details className="w-full min-w-0">
+      <summary className={summaryClassName}>Перенести на…</summary>
+      <form action={movePlanEntry} className="mt-2 flex w-full min-w-0 flex-col gap-2">
+        <input type="hidden" name="id" value={id} />
+        <input type="hidden" name="week" value={week} />
+        <input type="hidden" name="meal_type" value={meal} />
+        <label htmlFor={selectId} className="mb-1.5 block text-[13px] font-semibold text-ink-2">
+          День
+        </label>
+        <select
+          id={selectId}
+          name="day"
+          required
+          defaultValue=""
+          aria-label={`Перенести на інший день: ${title}`}
+          className="w-full min-h-[44px] rounded-12 border border-line-strong bg-surface px-3.5 py-2 text-[15px] text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-menu-tint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 max-w-full"
+        >
+          <option value="" disabled>
+            обрати день…
+          </option>
+          {days.map((date) => (
+            <option key={date} value={date}>
+              {formatWeekday(date)}, {formatDate(date)}
+            </option>
+          ))}
+        </select>
+        <Button
+          type="submit"
+          module="menu"
+          className={compact ? cardButtonClass : "w-full"}
+          aria-label={`Перенести страву: ${title}`}
+        >
+          Перенести
+        </Button>
+      </form>
+    </details>
+  );
+}
+
 function DishActions({
   entry,
   week,
   selected,
   recipes,
   meal,
+  days,
   cookLink,
   wide,
 }: {
@@ -474,11 +535,12 @@ function DishActions({
   readonly selected: string;
   readonly recipes: readonly RecipeChoice[];
   readonly meal: string;
+  readonly days: readonly string[];
   readonly cookLink: boolean;
   readonly wide: boolean;
 }) {
   return (
-    <div className="flex w-full min-w-0 flex-col gap-2">
+    <div className="flex w-full min-w-0 flex-col gap-2" draggable={false} onDragStart={(e) => e.stopPropagation()}>
       <div className={wide ? "flex w-full flex-col gap-2" : "flex flex-wrap gap-2"}>
         {cookLink && entry.recipeId && !entry.cookedAt ? (
           <Link href={`/recipes/${entry.recipeId}`} className={primaryLinkClass}>
@@ -489,21 +551,32 @@ function DishActions({
         <RemoveButton id={entry.id} title={entry.title} wide={wide} />
       </div>
       {entry.cookedAt ? null : (
-        <RecipePicker
-          action={replacePlanEntry}
-          hidden={[
-            ["id", entry.id],
-            ["week", week],
-            ["day", selected],
-          ]}
-          recipes={recipes}
-          meal={meal}
-          summary="Замінити"
-          summaryClassName={wide ? cardSummaryClass : secondarySummaryClass}
-          submitLabel="Замінити"
-          selectLabel={`Замінити: ${entry.title}`}
-          compact={wide}
-        />
+        <>
+          <RecipePicker
+            action={replacePlanEntry}
+            hidden={[
+              ["id", entry.id],
+              ["week", week],
+              ["day", selected],
+            ]}
+            recipes={recipes}
+            meal={meal}
+            summary="Замінити"
+            summaryClassName={wide ? cardSummaryClass : secondarySummaryClass}
+            submitLabel="Замінити"
+            selectLabel={`Замінити: ${entry.title}`}
+            compact={wide}
+          />
+          <MovePicker
+            id={entry.id}
+            week={week}
+            meal={meal}
+            days={days}
+            title={entry.title}
+            summaryClassName={wide ? cardSummaryClass : secondarySummaryClass}
+            compact={wide}
+          />
+        </>
       )}
     </div>
   );
@@ -515,22 +588,48 @@ function DesktopCard({
   week,
   selected,
   recipes,
+  days,
 }: {
   readonly entry: MenuEntryView;
   readonly slot: MenuSlot;
   readonly week: string;
   readonly selected: string;
   readonly recipes: readonly RecipeChoice[];
+  readonly days: readonly string[];
 }) {
   const cooked = Boolean(entry.cookedAt);
   return (
-    <Card variant={cooked ? "soft" : "default"} className="flex min-h-[148px] min-w-0 flex-col gap-1.5" style={{ padding: 12 }}>
+    <Card
+      draggable={!cooked}
+      onDragStart={
+        !cooked
+          ? (e) => {
+              e.dataTransfer.setData("text/plain", entry.id);
+              e.dataTransfer.effectAllowed = "move";
+            }
+          : undefined
+      }
+      variant={cooked ? "soft" : "default"}
+      className={`flex min-h-[148px] min-w-0 flex-col gap-1.5 ${
+        !cooked ? "cursor-grab active:cursor-grabbing" : ""
+      }`}
+      style={{ padding: 12 }}
+    >
       <div className="text-[11px] font-semibold tracking-[0.06em] text-ink-2 uppercase">{MEAL_LABELS[slot]}</div>
       <DishTitle entry={entry} cooked={cooked} strong={false} className="text-[15px]" />
       {entry.minutes != null ? <div className="text-xs text-ink-2">{entry.minutes} хв</div> : null}
       <div className="mt-auto flex flex-col items-start gap-2 pt-2">
         <DishStatusChip status={entry.status} />
-        <DishActions entry={entry} week={week} selected={selected} recipes={recipes} meal={slot} cookLink={false} wide />
+        <DishActions
+          entry={entry}
+          week={week}
+          selected={selected}
+          recipes={recipes}
+          meal={slot}
+          days={days}
+          cookLink={false}
+          wide
+        />
       </div>
     </Card>
   );
@@ -542,12 +641,14 @@ function MobileCard({
   week,
   selected,
   recipes,
+  days,
 }: {
   readonly entry: MenuEntryView;
   readonly slot: MenuSlot;
   readonly week: string;
   readonly selected: string;
   readonly recipes: readonly RecipeChoice[];
+  readonly days: readonly string[];
 }) {
   const cooked = Boolean(entry.cookedAt);
   const meta = mealMeta(entry);
@@ -559,7 +660,16 @@ function MobileCard({
       </div>
       <DishTitle entry={entry} cooked={cooked} strong className="text-[17px]" />
       {meta ? <p className="text-[13px] text-ink-2">{meta}</p> : null}
-      <DishActions entry={entry} week={week} selected={selected} recipes={recipes} meal={slot} cookLink wide={false} />
+      <DishActions
+        entry={entry}
+        week={week}
+        selected={selected}
+        recipes={recipes}
+        meal={slot}
+        days={days}
+        cookLink
+        wide={false}
+      />
     </Card>
   );
 }
@@ -596,6 +706,90 @@ function EmptySlot({
   );
 }
 
+function DesktopSlotCell({
+  date,
+  slot,
+  week,
+  selected,
+  items,
+  recipes,
+  days,
+}: {
+  readonly date: string;
+  readonly slot: MenuSlot;
+  readonly week: string;
+  readonly selected: string;
+  readonly items: readonly MenuEntryView[];
+  readonly recipes: readonly RecipeChoice[];
+  readonly days: readonly string[];
+}) {
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [, startTransition] = useTransition();
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (!e.relatedTarget || !e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const id = e.dataTransfer.getData("text/plain");
+    if (!id) return;
+    if (items.some((item) => item.id === id)) return;
+    const formData = new FormData();
+    formData.set("id", id);
+    formData.set("week", week);
+    formData.set("day", date);
+    formData.set("meal_type", slot);
+    startTransition(async () => {
+      await movePlanEntry(formData);
+    });
+  };
+
+  return (
+    <div
+      onDragOver={handleDragOver}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className={`relative rounded-18 transition-colors ${
+        isDragOver ? "bg-menu-tint/60 ring-2 ring-brand" : ""
+      }`}
+    >
+      {isDragOver && items.length > 0 ? (
+        <div className="pointer-events-none absolute inset-0 z-10 rounded-18 bg-menu-tint/60 ring-2 ring-brand" />
+      ) : null}
+      {items.length === 0 ? (
+        <EmptySlot date={date} slot={slot} week={week} recipes={recipes} mobile={false} />
+      ) : (
+        items.map((entry) => (
+          <DesktopCard
+            key={entry.id}
+            entry={entry}
+            slot={slot}
+            week={week}
+            selected={selected}
+            recipes={recipes}
+            days={days}
+          />
+        ))
+      )}
+    </div>
+  );
+}
+
 function DayColumn({
   date,
   today,
@@ -603,6 +797,7 @@ function DayColumn({
   selected,
   entries,
   recipes,
+  days,
 }: {
   readonly date: string;
   readonly today: string;
@@ -610,6 +805,7 @@ function DayColumn({
   readonly selected: string;
   readonly entries: readonly MenuEntryView[];
   readonly recipes: readonly RecipeChoice[];
+  readonly days: readonly string[];
 }) {
   const isToday = date === today;
   return (
@@ -628,12 +824,18 @@ function DayColumn({
       </div>
       {MENU_SLOTS.map((slot) => {
         const items = entriesOn(entries, date, slot);
-        if (items.length === 0) {
-          return <EmptySlot key={slot} date={date} slot={slot} week={week} recipes={recipes} mobile={false} />;
-        }
-        return items.map((entry) => (
-          <DesktopCard key={entry.id} entry={entry} slot={slot} week={week} selected={selected} recipes={recipes} />
-        ));
+        return (
+          <DesktopSlotCell
+            key={slot}
+            date={date}
+            slot={slot}
+            week={week}
+            selected={selected}
+            items={items}
+            recipes={recipes}
+            days={days}
+          />
+        );
       })}
     </section>
   );
@@ -743,7 +945,15 @@ export function MenuScreen({
             return <EmptySlot key={slot} date={selected} slot={slot} week={week} recipes={recipes} mobile />;
           }
           return items.map((entry) => (
-            <MobileCard key={entry.id} entry={entry} slot={slot} week={week} selected={selected} recipes={recipes} />
+            <MobileCard
+              key={entry.id}
+              entry={entry}
+              slot={slot}
+              week={week}
+              selected={selected}
+              recipes={recipes}
+              days={days}
+            />
           ));
         })}
         <TomorrowRow tomorrow={tomorrow} />
@@ -762,12 +972,14 @@ export function MenuScreen({
               selected={selected}
               entries={entries}
               recipes={recipes}
+              days={days}
             />
           ))}
         </div>
         <p className="mt-5 flex flex-wrap gap-x-5 gap-y-1 text-[13px] text-ink-2">
           <span>«Приготовано» списує продукти зі складу.</span>
           <span>«Бракує» — скільки продуктів рецепта не вистачає на порції сім&apos;ї.</span>
+          <span>Страву можна перетягнути в інший день.</span>
         </p>
       </div>
     </div>
