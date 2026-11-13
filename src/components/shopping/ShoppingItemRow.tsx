@@ -34,7 +34,7 @@ export function ShoppingItemRow({ item }: Readonly<ShoppingItemRowProps>) {
           <span
             aria-hidden="true"
             className={`flex size-5 shrink-0 items-center justify-center rounded-[6px] border text-xs font-bold text-white transition ${
-              item.checked ? "border-[#8A5600] bg-[#8A5600]" : "border-line-strong bg-surface group-hover:border-[#8A5600]"
+              item.checked ? "border-shops bg-shops" : "border-line-strong bg-surface group-hover:border-shops"
             }`}
           >
             {item.checked ? "✓" : ""}
@@ -47,7 +47,7 @@ export function ShoppingItemRow({ item }: Readonly<ShoppingItemRowProps>) {
             {item.productName}
           </span>
           {item.stocked_at && (
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#DDEFEE] text-[#124E51] shrink-0">
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-pantry-tint text-pantry-ink shrink-0">
               у запасах
             </span>
           )}
@@ -70,7 +70,7 @@ export function ShoppingItemRow({ item }: Readonly<ShoppingItemRowProps>) {
         <input type="hidden" name="id" value={item.id} />
         <button
           type="submit"
-          className="w-7 h-7 flex items-center justify-center text-stone-300 hover:text-red-500 rounded text-base transition cursor-pointer"
+          className="flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center text-ink-2/40 hover:text-recipes rounded-12 text-lg transition cursor-pointer"
           aria-label={`Видалити: ${item.productName}`}
         >
           ×

@@ -20,15 +20,16 @@ React-компоненти на Tailwind. Файли не підключають
 | `System.dc.html` | Навігація, спільні компоненти, потік даних, канали скану | — |
 | `WebHome.dc.html`, `MHome.dc.html` | Огляд (дашборд) | `/` |
 | `WebMenu.dc.html`, `MMenu.dc.html` | Меню тижня | `/menu` |
-| `WebRecipes.dc.html`, `MRecipe.dc.html` | Рецепти: каталог і картка рецепта | `/recipes`, `/recipes/[id]` |
+| `WebRecipes.dc.html`, `MRecipe.dc.html` | Рецепти: каталог і картка рецепта | `/recipes`, `/recipes/[id]`, `/recipes/new`, `/recipes/[id]/edit` |
 | `WebPantry.dc.html`, `MPantry.dc.html` | Склад | `/pantry` |
 | `WebShops.dc.html`, `MShops.dc.html` | Магазини і список покупок | `/shopping` |
-| `WebFinance.dc.html`, `MFinance.dc.html` | Фінанси | `/finance` (новий) |
+| `WebFinance.dc.html`, `MFinance.dc.html` | Фінанси і перегляд чеків | `/finance`, `/finance/[id]` |
 | `WebFamily.dc.html`, `MFamily.dc.html` | Сім’я | `/settings` |
 | `WebScan.dc.html`, `MScan.dc.html` | Скан: вхідні й перевірка | `/scan` |
 | `MTelegram.dc.html` | Діалог із Telegram-ботом | — (бот) |
+| — | Довідник продуктів | `/products` |
 
-Зараз меню тижня живе на `/`. За концептом `/` стає «Оглядом», а меню переїжджає на `/menu`.
+«Огляд» реалізовано на `/`, а меню тижня розміщено на `/menu`.
 
 ## Бренд
 

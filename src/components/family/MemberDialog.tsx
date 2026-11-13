@@ -88,7 +88,7 @@ function MemberForm({ member, onClose }: MemberFormProps) {
           type="button"
           onClick={onClose}
           aria-label="Закрити"
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-xl text-ink-2 hover:bg-soft"
+          className="flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-xl text-ink-2 hover:bg-soft"
         >
           ×
         </button>
@@ -99,7 +99,7 @@ function MemberForm({ member, onClose }: MemberFormProps) {
 
         <div className="flex flex-col gap-1.5">
           <label htmlFor="fm-name" className="text-[13px] font-semibold text-ink-2">
-            Ім&apos;я <span className="text-[#8C2A18]">*</span>
+            Ім&apos;я <span className="text-recipes-ink">*</span>
           </label>
           <input
             id="fm-name"
@@ -228,7 +228,7 @@ function MemberForm({ member, onClose }: MemberFormProps) {
               type="button"
               disabled={isPending}
               onClick={handleDelete}
-              className="rounded-12 border border-[#B23A24]/30 px-3.5 py-2 text-sm font-semibold text-[#8C2A18] hover:bg-[#FBE6E0] disabled:opacity-50"
+              className="min-h-[44px] rounded-12 border border-recipes/30 px-3.5 py-2 text-sm font-semibold text-recipes-ink hover:bg-recipes-tint disabled:opacity-50"
             >
               Видалити
             </button>

@@ -52,7 +52,7 @@ export function StoreManagementModal({ stores, week }: Readonly<StoreManagementM
           <button
             type="button"
             onClick={() => setIsOpen(false)}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-ink-2 hover:bg-soft hover:text-ink text-xl transition cursor-pointer"
+            className="w-11 h-11 min-h-[44px] min-w-[44px] rounded-full flex items-center justify-center text-ink-2 hover:bg-soft hover:text-ink text-xl transition cursor-pointer"
             aria-label="Закрити"
           >
             ×
@@ -131,13 +131,13 @@ export function StoreManagementModal({ stores, week }: Readonly<StoreManagementM
                             <button
                               type="button"
                               onClick={() => setEditingId(null)}
-                              className="h-8 px-3 rounded-8 border border-line text-xs font-medium cursor-pointer"
+                              className="min-h-[44px] px-3.5 rounded-12 border border-line text-xs font-medium cursor-pointer"
                             >
                               Скасувати
                             </button>
                             <button
                               type="submit"
-                              className="h-8 px-3 rounded-8 bg-[#8A5600] text-white text-xs font-semibold cursor-pointer"
+                              className="min-h-[44px] px-3.5 rounded-12 bg-shops text-white text-xs font-semibold hover:bg-shops-ink cursor-pointer"
                             >
                               Зберегти
                             </button>
@@ -157,7 +157,7 @@ export function StoreManagementModal({ stores, week }: Readonly<StoreManagementM
                           <button
                             type="button"
                             onClick={() => setEditingId(s.id)}
-                            className="text-xs font-semibold text-[#8A5600] hover:underline px-1 cursor-pointer"
+                            className="min-h-[44px] inline-flex items-center text-xs font-semibold text-shops hover:underline px-2 cursor-pointer"
                           >
                             Змінити
                           </button>
@@ -166,7 +166,7 @@ export function StoreManagementModal({ stores, week }: Readonly<StoreManagementM
                             <input type="hidden" name="week" value={week} />
                             <button
                               type="submit"
-                              className="text-stone-400 hover:text-red-600 px-1 font-bold text-base cursor-pointer"
+                              className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-ink-2/40 hover:text-recipes text-lg cursor-pointer"
                               aria-label={`Видалити магазин ${s.name}`}
                             >
                               ×
@@ -234,7 +234,7 @@ export function StoreManagementModal({ stores, week }: Readonly<StoreManagementM
               </div>
               <button
                 type="submit"
-                className="w-full h-11 rounded-12 bg-[#8A5600] text-white font-semibold text-sm hover:bg-[#724600] transition cursor-pointer"
+                className="w-full h-11 min-h-[44px] rounded-12 bg-shops text-white font-semibold text-sm hover:bg-shops-ink transition cursor-pointer"
               >
                 Додати магазин
               </button>
@@ -244,7 +244,7 @@ export function StoreManagementModal({ stores, week }: Readonly<StoreManagementM
           <div className="pt-2 text-center">
             <Link
               href="/settings"
-              className="text-xs text-[#8A5600] hover:underline"
+              className="text-xs text-shops hover:underline"
             >
               Перейти до повних налаштувань сім&apos;ї та техніки →
             </Link>

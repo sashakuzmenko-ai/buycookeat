@@ -26,7 +26,7 @@ export function MonthlyStoresSection({ monthName, summaries }: Readonly<MonthlyS
             >
               <div
                 aria-hidden="true"
-                className="w-9 h-9 rounded-12 bg-[#FBEFD2] text-[#6B4300] flex items-center justify-center font-unbounded font-bold text-[14px] shrink-0"
+                className="w-9 h-9 rounded-12 bg-shops-tint text-shops-ink flex items-center justify-center font-unbounded font-bold text-[14px] shrink-0"
               >
                 {s.initial}
               </div>

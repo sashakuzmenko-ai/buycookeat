@@ -160,7 +160,7 @@ export default async function ShoppingPage({ searchParams }: PageProps<"/shoppin
       {/* Шапка розділу */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <div className="text-sm font-semibold text-[#8A5600]">Магазини</div>
+          <div className="text-sm font-semibold text-shops">Магазини</div>
           <h1 className="m-0 font-unbounded font-bold text-2xl md:text-[28px] text-ink leading-tight">
             Покупки до неділі
           </h1>
@@ -170,14 +170,14 @@ export default async function ShoppingPage({ searchParams }: PageProps<"/shoppin
             </span>
             <div className="flex items-center gap-1 ml-2">
               <Link
-                className="w-7 h-7 rounded-8 border border-line-strong bg-surface text-ink flex items-center justify-center text-sm font-semibold hover:bg-soft transition"
+                className="w-11 h-11 min-h-[44px] min-w-[44px] rounded-12 border border-line-strong bg-surface text-ink flex items-center justify-center text-sm font-semibold hover:bg-soft transition"
                 href={`/shopping?week=${addDays(week, -7)}`}
                 aria-label="Попередній тиждень"
               >
                 ←
               </Link>
               <Link
-                className="w-7 h-7 rounded-8 border border-line-strong bg-surface text-ink flex items-center justify-center text-sm font-semibold hover:bg-soft transition"
+                className="w-11 h-11 min-h-[44px] min-w-[44px] rounded-12 border border-line-strong bg-surface text-ink flex items-center justify-center text-sm font-semibold hover:bg-soft transition"
                 href={`/shopping?week=${addDays(week, 7)}`}
                 aria-label="Наступний тиждень"
               >
@@ -195,7 +195,7 @@ export default async function ShoppingPage({ searchParams }: PageProps<"/shoppin
             <input type="hidden" name="week" value={week} />
             <button
               type="submit"
-              className="h-[44px] px-4 rounded-12 bg-[#1E6B45] text-white font-semibold text-[15px] hover:bg-[#165536] transition cursor-pointer"
+              className="h-[44px] min-h-[44px] px-4 rounded-12 bg-brand text-white font-semibold text-[15px] hover:bg-menu-ink transition cursor-pointer"
             >
               {hasPlanItems ? "Перерахувати з меню" : "Зібрати з меню"}
             </button>
@@ -206,7 +206,7 @@ export default async function ShoppingPage({ searchParams }: PageProps<"/shoppin
               <input type="hidden" name="week" value={week} />
               <button
                 type="submit"
-                className="h-[44px] px-4 rounded-12 border border-[#1E6B45] text-[#1E6B45] bg-surface font-semibold text-[15px] hover:bg-[#E3F1E8] transition cursor-pointer"
+                className="h-[44px] min-h-[44px] px-4 rounded-12 border border-brand text-brand bg-surface font-semibold text-[15px] hover:bg-menu-tint transition cursor-pointer"
               >
                 Перенести куплене на склад ({toStock})
               </button>

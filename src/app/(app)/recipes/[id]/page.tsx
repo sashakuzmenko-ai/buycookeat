@@ -133,7 +133,7 @@ export default async function RecipePage({ params, searchParams }: PageProps<"/r
       )}
 
       <section className="mt-4" aria-labelledby="recipe-products">
-        <h2 id="recipe-products" className="h2 mb-2">
+        <h2 id="recipe-products" className="font-display text-base font-bold text-ink md:text-[18px] mb-2">
           Продукти{covered.length > 0 ? ` · ${covered.length}` : ""}
         </h2>
         <p className="mb-3 text-[13px] text-ink-2">
@@ -169,7 +169,7 @@ export default async function RecipePage({ params, searchParams }: PageProps<"/r
       ) : null}
 
       <section className="mt-6" aria-labelledby="recipe-steps">
-        <h2 id="recipe-steps" className="h2 mb-2">
+        <h2 id="recipe-steps" className="font-display text-base font-bold text-ink md:text-[18px] mb-2">
           Кроки{steps.length > 0 ? ` · ${steps.length}` : ""}
         </h2>
         {steps.length === 0 ? (
@@ -187,7 +187,7 @@ export default async function RecipePage({ params, searchParams }: PageProps<"/r
       </section>
 
       <section className="mt-6" aria-labelledby="recipe-equipment">
-        <h2 id="recipe-equipment" className="h2 mb-2">
+        <h2 id="recipe-equipment" className="font-display text-base font-bold text-ink md:text-[18px] mb-2">
           Техніка
         </h2>
         {equipment.length === 0 ? (

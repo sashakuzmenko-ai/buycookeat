@@ -12,7 +12,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-4 py-8">
       <div className="mb-8 flex flex-col items-center text-center">
         <Logo size="lg" className="mb-4 shrink-0" aria-hidden />
-        <h1 className="h1 mb-1">Cook &amp; Eat</h1>
+        <h1 className="font-display text-2xl font-bold tracking-tight text-ink md:text-[28px] mb-1">Cook &amp; Eat</h1>
         <p className="text-[15px] text-ink-2">Купуй. Готуй. Смакуй.</p>
       </div>
       <Notice params={params} />

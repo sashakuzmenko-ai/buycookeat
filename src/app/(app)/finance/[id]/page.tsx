@@ -26,7 +26,7 @@ export default async function ReceiptPage({ params, searchParams }: ReceiptPageP
   if (loaded.error) {
     return (
       <div className="mx-auto max-w-3xl">
-        <h1 className="h1">Чек</h1>
+        <h1 className="font-display text-2xl font-bold tracking-tight text-ink md:text-[28px]">Чек</h1>
         <p role="alert" className="mt-4 text-sm text-recipes-ink">
           Не вдалося відкрити чек.
         </p>
@@ -37,7 +37,7 @@ export default async function ReceiptPage({ params, searchParams }: ReceiptPageP
   if (!loaded.receipt) {
     return (
       <div className="mx-auto max-w-3xl">
-        <h1 className="h1">Чек не знайдено</h1>
+        <h1 className="font-display text-2xl font-bold tracking-tight text-ink md:text-[28px]">Чек не знайдено</h1>
         <Link href={backHref} className="mt-4 inline-flex min-h-[44px] items-center text-sm font-semibold text-finance">
           До фінансів
         </Link>

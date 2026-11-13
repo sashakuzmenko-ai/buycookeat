@@ -223,7 +223,7 @@ function MenuHeader({
           <span className="lg:hidden">Меню · {range}</span>
           <span className="hidden lg:inline">Меню</span>
         </p>
-        <h1 className="h1">
+        <h1 className="font-display text-2xl font-bold tracking-tight text-ink md:text-[28px]">
           <span className="lg:hidden">{selectedName}</span>
           <span className="hidden lg:inline">{range}</span>
         </h1>
@@ -429,10 +429,10 @@ function RecipePicker({
           {hidden.map(([name, value]) => (
             <input key={name} type="hidden" name={name} value={value} />
           ))}
-          <label htmlFor={selectId} className="label">
+          <label htmlFor={selectId} className="mb-1.5 block text-[13px] font-semibold text-ink-2">
             Страва
           </label>
-          <select id={selectId} name="recipe_id" required defaultValue="" aria-label={selectLabel} className="input max-w-full">
+          <select id={selectId} name="recipe_id" required defaultValue="" aria-label={selectLabel} className="w-full min-h-[44px] rounded-12 border border-line-strong bg-surface px-3.5 py-2 text-[15px] text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-menu-tint max-w-full">
             <option value="" disabled>
               обрати страву…
             </option>

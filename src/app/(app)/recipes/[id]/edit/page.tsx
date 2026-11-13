@@ -26,7 +26,7 @@ export default async function EditRecipePage({ params, searchParams }: PageProps
       <Link href={`/recipes/${id}`} className="text-sm font-semibold text-recipes">
         ← Назад до рецепта
       </Link>
-      <h1 className="h1 mt-2 mb-4">Редагування</h1>
+      <h1 className="font-display text-2xl font-bold tracking-tight text-ink md:text-[28px] mt-2 mb-4">Редагування</h1>
       <Notice params={await searchParams} />
       <RecipeForm
         action={saveRecipe}

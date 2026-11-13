@@ -175,7 +175,7 @@ export function FamilyScreen({
               key={item.key}
               className={`rounded-full px-3 py-1.5 text-[13px] ${
                 item.isAllergy
-                  ? "bg-[#FBE6E0] text-[#8C2A18] font-semibold border border-[#B23A24]/20"
+                  ? "bg-recipes-tint text-recipes-ink font-semibold border border-recipes/20"
                   : "bg-surface border border-line text-ink"
               }`}
             >

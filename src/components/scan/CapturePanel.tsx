@@ -209,7 +209,7 @@ export const CapturePanel = forwardRef<
                 onChange={(event) => setText(event.target.value)}
                 maxLength={2000}
                 placeholder="Купив сир і сметану"
-                className="input min-h-24 py-2"
+                className="w-full min-h-24 rounded-12 border border-line-strong bg-surface px-3.5 py-2 text-[15px] text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-menu-tint"
               />
             </label>
           )}
@@ -263,7 +263,7 @@ export const CapturePanel = forwardRef<
           {kind !== "text" && (
             <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-ink-muted-on-dark" htmlFor="scan-note">
               Примітка (необов&apos;язково)
-              <input id="scan-note" value={note} maxLength={500} onChange={(event) => setNote(event.target.value)} className="input" placeholder="напр.: це верхня полиця холодильника" />
+              <input id="scan-note" value={note} maxLength={500} onChange={(event) => setNote(event.target.value)} className="w-full min-h-[44px] rounded-12 border border-line-strong bg-surface px-3.5 py-2 text-[15px] text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-menu-tint" placeholder="напр.: це верхня полиця холодильника" />
             </label>
           )}
           {error && (

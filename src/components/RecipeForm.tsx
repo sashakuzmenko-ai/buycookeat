@@ -99,7 +99,7 @@ export function RecipeForm({
       </Card>
 
       <Card className="p-5">
-        <h2 className="h2 mb-3">Інгредієнти</h2>
+        <h2 className="font-display text-base font-bold text-ink md:text-[18px] mb-3">Інгредієнти</h2>
         <div className="space-y-2">
           {rows.map((row) => (
             <div key={row.key} className="flex flex-wrap items-center gap-2">

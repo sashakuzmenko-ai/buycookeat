@@ -95,7 +95,7 @@ export function MemberCard({ member, onEdit, isMobileCompact = false }: MemberCa
         <button
           type="button"
           onClick={() => onEdit(member)}
-          className="rounded-lg p-1.5 text-xs font-semibold text-ink-2 hover:bg-soft hover:text-ink focus-visible:ring-2 focus-visible:ring-family"
+          className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg px-2.5 py-1 text-xs font-semibold text-ink-2 hover:bg-soft hover:text-ink focus-visible:ring-2 focus-visible:ring-family cursor-pointer"
           aria-label={`Редагувати: ${member.name}`}
         >
           Змінити
@@ -146,7 +146,7 @@ export function MemberCard({ member, onEdit, isMobileCompact = false }: MemberCa
               <span
                 key={tag}
                 className={`rounded-full px-2.5 py-1 text-[13px] font-semibold ${
-                  allergy ? "bg-[#FBE6E0] text-[#8C2A18]" : "bg-soft text-ink"
+                  allergy ? "bg-recipes-tint text-recipes-ink" : "bg-soft text-ink"
                 }`}
               >
                 {tag}
