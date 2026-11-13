@@ -1,6 +1,6 @@
 // node scripts/check-logic.ts — перевірка розрахунку порцій, списку покупок і автозаповнення
 import assert from "node:assert/strict";
-import { autoFill, buildShoppingList, formatQty, householdPortions, ingredientUsage, manualShoppingRow, roundCooking, roundQty } from "../src/lib/shopping.ts";
+import { autoFill, buildShoppingList, formatQty, householdPortions, ingredientUsage, manualShoppingRow, requiredEquipment, roundCooking, roundQty } from "../src/lib/shopping.ts";
 import { dayMarkFromSlots, dishStockStatus, pantryCoveragePercent, positionCountLabel, summarizeMenu } from "../src/lib/menu.ts";
 import {
   availabilityLabel,
@@ -232,6 +232,113 @@ const breakfasts = autoFill(
   [],
 );
 assert.deepEqual(breakfasts.map((f) => f.recipeId), ["d", "d"]); // єдиний сніданок повторюється, перекусів немає
+
+// потреба в техніці (requiredEquipment)
+assert.deepEqual(requiredEquipment("Запекти в духовці при 180 градусах"), ["Духовка"]);
+assert.deepEqual(requiredEquipment("Запікати на деку 45 хв"), ["Духовка"]);
+assert.deepEqual(requiredEquipment("Збити блендером до однорідності"), ["Блендер"]);
+assert.deepEqual(requiredEquipment("Розігріти в мікрохвильовці 2 хвилини"), ["Мікрохвильовка"]);
+assert.deepEqual(requiredEquipment("Варити на плиті до готовності"), ["Плита"]);
+assert.deepEqual(requiredEquipment("Готувати в чаші мультиварки"), ["Мультиварка"]);
+assert.deepEqual(requiredEquipment("Обсмажити у фритюрниці"), ["Фритюрниця"]);
+assert.deepEqual(requiredEquipment("Аерогриль для скоринки"), ["Аерогриль"]);
+assert.deepEqual(requiredEquipment("Смажити на грилі"), ["Гриль"]);
+assert.deepEqual(requiredEquipment("1 плитка шоколаду та горіхи"), []); // не плутати з плитою
+assert.deepEqual(requiredEquipment("Простий салат без техніки"), []);
+
+// автозаповнення з контекстом: покриття складу, техніка, запас міцності
+const autoFillTestProducts = new Map([
+  ["p_pot", { unit: "г", isStaple: false, storeId: null }],
+  ["p_chk", { unit: "г", isStaple: false, storeId: null }],
+]);
+const autoFillTestNeeds = new Map([
+  ["r_high", [{ servings: 1, baseServings: 1, ingredients: [{ productId: "p_pot", quantity: 100, optional: false }] }]],
+  ["r_low", [{ servings: 1, baseServings: 1, ingredients: [{ productId: "p_chk", quantity: 100, optional: false }] }]],
+  ["r_oven", [{ servings: 1, baseServings: 1, ingredients: [{ productId: "p_pot", quantity: 100, optional: false }] }]],
+  ["r_stove", [{ servings: 1, baseServings: 1, ingredients: [{ productId: "p_chk", quantity: 100, optional: false }] }]],
+]);
+
+// 1. Вибір за покриттям складу: p_pot є на складі (100%), p_chk немає (0%) -> r_high обирається раніше за r_low
+const stockWithPotato = new Map([["p_pot", 500], ["p_chk", 0]]);
+const coverageContext = {
+  portions: 1,
+  stock: stockWithPotato,
+  products: autoFillTestProducts,
+  needs: autoFillTestNeeds,
+  recipeEquipment: new Map([["r_high", []], ["r_low", []]]),
+  equipment: new Set<string>(),
+};
+const pickedByCoverage = autoFill(
+  [{ date: "2026-11-09", mealType: "dinner" }],
+  [{ id: "r_low", meal_types: ["dinner"] }, { id: "r_high", meal_types: ["dinner"] }],
+  [],
+  coverageContext,
+);
+assert.equal(pickedByCoverage[0].recipeId, "r_high");
+
+// 2. Відсіювання за відсутньою технікою: у r_oven є 100% покриття, але потрібна Духовка; у сім'ї лише Плита -> обирається r_stove
+const equipmentContext = {
+  portions: 1,
+  stock: stockWithPotato,
+  products: autoFillTestProducts,
+  needs: autoFillTestNeeds,
+  recipeEquipment: new Map([["r_oven", ["Духовка"]], ["r_stove", ["Плита"]]]),
+  equipment: new Set(["плита"]), // перевірка зведення регістру
+};
+const pickedWithEquipmentFilter = autoFill(
+  [{ date: "2026-11-09", mealType: "dinner" }],
+  [{ id: "r_oven", meal_types: ["dinner"] }, { id: "r_stove", meal_types: ["dinner"] }],
+  [],
+  equipmentContext,
+);
+assert.equal(pickedWithEquipmentFilter[0].recipeId, "r_stove");
+
+// 3. Запас міцності: коли всім кандидатам потрібна відсутня техніка, вони повертаються і слот не лишається порожнім
+const noOvenContext = {
+  portions: 1,
+  stock: stockWithPotato,
+  products: autoFillTestProducts,
+  needs: autoFillTestNeeds,
+  recipeEquipment: new Map([["r_oven", ["Духовка"]]]),
+  equipment: new Set<string>(["Плита"]),
+};
+const fallbackPicks = autoFill(
+  [{ date: "2026-11-09", mealType: "dinner" }],
+  [{ id: "r_oven", meal_types: ["dinner"] }],
+  [],
+  noOvenContext,
+);
+assert.equal(fallbackPicks.length, 1);
+assert.equal(fallbackPicks[0].recipeId, "r_oven");
+
+// 4. Tie-break: випадковість використовується лише між однаковими за покриттям
+const tieContext = {
+  portions: 1,
+  stock: new Map([["p_pot", 500]]),
+  products: autoFillTestProducts,
+  needs: new Map([
+    ["t1", [{ servings: 1, baseServings: 1, ingredients: [{ productId: "p_pot", quantity: 100, optional: false }] }]],
+    ["t2", [{ servings: 1, baseServings: 1, ingredients: [{ productId: "p_pot", quantity: 100, optional: false }] }]],
+  ]),
+  recipeEquipment: new Map(),
+  equipment: new Set<string>(),
+};
+const pickFirst = autoFill(
+  [{ date: "2026-11-09", mealType: "dinner" }],
+  [{ id: "t1", meal_types: ["dinner"] }, { id: "t2", meal_types: ["dinner"] }],
+  [],
+  tieContext,
+  () => 0,
+);
+const pickSecond = autoFill(
+  [{ date: "2026-11-09", mealType: "dinner" }],
+  [{ id: "t1", meal_types: ["dinner"] }, { id: "t2", meal_types: ["dinner"] }],
+  [],
+  tieContext,
+  () => 0.99,
+);
+assert.equal(pickFirst[0].recipeId, "t1");
+assert.equal(pickSecond[0].recipeId, "t2");
 
 // цілісність стартових даних
 const names = new Set(SEED_PRODUCTS.map((p) => p[0]));
