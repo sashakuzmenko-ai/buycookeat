@@ -1,3 +1,5 @@
+import { lookup } from "node:dns/promises";
+
 function ipv4Private(host: string): boolean {
   const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
   if (!m) return false;
@@ -12,12 +14,47 @@ function ipv4Private(host: string): boolean {
   return false;
 }
 
+function ipv6Private(address: string): boolean {
+  const lower = address.toLowerCase();
+  if (lower === "::1" || lower === "0:0:0:0:0:0:0:1") return true;
+  if (lower.startsWith("fe80:")) return true;
+  const first = lower.split(":")[0] ?? "";
+  if (first.length === 2 && first >= "fc" && first <= "fd") return true;
+  const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(lower);
+  if (mapped) return ipv4Private(mapped[1]);
+  return false;
+}
+
+function ipAddressBlocked(address: string): boolean {
+  return address.includes(":") ? ipv6Private(address) : ipv4Private(address);
+}
+
+const LITERAL_IPV4 = /^\d{1,3}(?:\.\d{1,3}){3}$/;
+
 function hostBlocked(hostname: string): boolean {
   const lower = hostname.toLowerCase();
   const bare = lower.replace(/^\[|\]$/g, "");
   if (bare === "localhost" || bare === "::1" || bare.endsWith(".localhost") || bare.endsWith(".local")) return true;
   if (lower === "[::1]") return true;
-  return ipv4Private(bare);
+  if (LITERAL_IPV4.test(bare)) return ipv4Private(bare);
+  if (bare.includes(":")) return ipv6Private(bare);
+  return false;
+}
+
+async function assertPublicResolvableHost(hostname: string): Promise<void> {
+  const bare = hostname.replace(/^\[|\]$/g, "");
+  if (hostBlocked(hostname)) throw new PublicFetchError(400, "Локальні й приватні адреси заборонені");
+  if (LITERAL_IPV4.test(bare) || bare.includes(":")) return;
+  let records: { address: string }[];
+  try {
+    records = await lookup(bare, { all: true, verbatim: true });
+  } catch {
+    throw new PublicFetchError(502, "Не вдалося визначити адресу сервера");
+  }
+  if (!records.length) throw new PublicFetchError(502, "Не вдалося визначити адресу сервера");
+  for (const { address } of records) {
+    if (ipAddressBlocked(address)) throw new PublicFetchError(400, "Локальні й приватні адреси заборонені");
+  }
 }
 
 function portAllowed(url: URL): boolean {
@@ -62,6 +99,7 @@ export async function fetchPublicHttpResponse(
 ): Promise<Response> {
   let current = url;
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    await assertPublicResolvableHost(current.hostname);
     const response = await fetchImpl(current.toString(), { ...init, redirect: "manual" });
     const status = response.status;
     if (status >= 300 && status < 400) {
