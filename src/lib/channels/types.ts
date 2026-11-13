@@ -14,6 +14,7 @@ export type TelegramChatType = "private" | "group" | "supergroup" | "channel" | 
 
 export type InboundMessage = {
   senderId: string;
+  senderName: string | null;
   chatId: string;
   chatType: TelegramChatType;
   chatTitle: string | null;

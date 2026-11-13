@@ -49,6 +49,7 @@ import {
   countUncertain,
   formatScanWhen,
   inputTypeLabel,
+  queueTitle,
 } from "./scan/present.ts";
 import type { InboxScan } from "./scan/inbox.ts";
 import { formatQty, type PlanLine, type ProductInfo } from "./shopping.ts";
@@ -418,9 +419,11 @@ export function buildHomeModel(input: BuildHomeModelInput): HomeModel {
   const recentScans: HomeScanView[] = scans.inboxScans.slice(0, 4).map((s) => {
     let title = "";
     if (s.inputType === "receipt") {
-      title = `Чек${s.storeName ? ` · ${s.storeName}` : ""}${s.total ? ` · ${formatUah(s.total)}` : ""}`;
+      title = queueTitle(s.inputType, s.storeName, s.channel, s.senderName);
+      if (s.total) title += ` · ${formatUah(s.total)}`;
     } else {
       title = `${inputTypeLabel(s.inputType)} · ${pluralizePositions(s.items.length)}`;
+      if (s.senderName) title += ` · від ${s.senderName}`;
     }
 
     let note = "";
