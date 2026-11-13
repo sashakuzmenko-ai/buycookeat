@@ -17,6 +17,7 @@ export type TelegramLinkState = {
   code: string | null;
   expiresLabel: string | null;
   botUrl: string | null;
+  botGroupUrl: string | null;
 };
 
 function CopyCode({ code }: { code: string }) {
@@ -41,7 +42,7 @@ function CopyCode({ code }: { code: string }) {
   );
 }
 
-export function TelegramLink({ linkedCount, bindings, code, expiresLabel, botUrl }: TelegramLinkState) {
+export function TelegramLink({ linkedCount, bindings, code, expiresLabel, botUrl, botGroupUrl }: TelegramLinkState) {
   return (
     <div className="mt-2 flex flex-col gap-2 rounded-12 bg-soft p-3 text-[13px] leading-relaxed text-ink-2">
       <p>
@@ -87,6 +88,17 @@ export function TelegramLink({ linkedCount, bindings, code, expiresLabel, botUrl
           ) : (
             <p>Надішліть боту команду /start {code}. Посилання з&apos;явиться, коли буде задано токен бота.</p>
           )}
+          {botGroupUrl ? (
+            <div className="flex flex-col gap-1">
+              <a href={botGroupUrl} className="font-semibold text-ink underline" target="_blank" rel="noreferrer">
+                Додати бота в групу з цим кодом
+              </a>
+              <p className="text-[12px] text-ink-2">
+                У групі вимкніть приватність бота в BotFather: /setprivacy → Disable — інакше бот не бачить звичайних
+                повідомлень. Якщо Telegram не надішле /start автоматично, відправте в групу вручну: /start {code}.
+              </p>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
