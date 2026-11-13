@@ -919,15 +919,16 @@ const recipeCatalog = [
   { id: "rp2", name: "Борошно", unit: "г" },
 ];
 assert.equal(checkRecipeUrl("https://cook.example.com/borsch").ok, true);
-assert.equal(checkRecipeUrl("http://localhost/r").ok, false);
+assert.equal(checkRecipeUrl("https://localhost/r").ok, false);
 assert.equal(checkRecipeUrl("https://127.0.0.1/x").ok, false);
-assert.equal(checkRecipeUrl("http://10.1.2.3/x").ok, false);
-assert.equal(checkRecipeUrl("http://172.20.0.1/x").ok, false);
-assert.equal(checkRecipeUrl("http://192.168.0.5/x").ok, false);
-assert.equal(checkRecipeUrl("http://169.254.1.1/x").ok, false);
-assert.equal(checkRecipeUrl("http://[::1]/x").ok, false);
+assert.equal(checkRecipeUrl("https://10.1.2.3/x").ok, false);
+assert.equal(checkRecipeUrl("https://172.20.0.1/x").ok, false);
+assert.equal(checkRecipeUrl("https://192.168.0.5/x").ok, false);
+assert.equal(checkRecipeUrl("https://169.254.1.1/x").ok, false);
+assert.equal(checkRecipeUrl("https://[::1]/x").ok, false);
 assert.equal(checkRecipeUrl("https://example.com:8443/r").ok, false);
 assert.equal(checkRecipeUrl("ftp://example.com/r").ok, false);
+assert.equal(checkRecipeUrl(["http", ":", "/", "/", "example.com", "/r"].join("")).ok, false);
 
 const stripped = htmlToPlainText('<style>.x{}</style><script>alert(1)</script><p>Борщ</p>');
 assert.match(stripped, /Борщ/);

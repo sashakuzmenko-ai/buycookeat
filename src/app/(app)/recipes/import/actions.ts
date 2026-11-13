@@ -9,7 +9,8 @@ export type ImportRecipeState =
   | null;
 
 export async function fetchRecipeDraft(_prev: ImportRecipeState, formData: FormData): Promise<ImportRecipeState> {
-  const rawUrl = String(formData.get("url") ?? "").trim();
+  const urlField = formData.get("url");
+  const rawUrl = typeof urlField === "string" ? urlField.trim() : "";
   const checked = checkRecipeUrl(rawUrl);
   if (!checked.ok) return { ok: false, error: checked.error };
 

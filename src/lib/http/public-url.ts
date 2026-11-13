@@ -1,4 +1,5 @@
 import { lookup } from "node:dns/promises";
+import https from "node:https";
 
 function ipv4Private(host: string): boolean {
   const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
@@ -31,6 +32,16 @@ function ipAddressBlocked(address: string): boolean {
 
 const LITERAL_IPV4 = /^\d{1,3}(?:\.\d{1,3}){3}$/;
 
+export class PublicFetchError extends Error {
+  readonly status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "PublicFetchError";
+    this.status = status;
+  }
+}
+
 function hostBlocked(hostname: string): boolean {
   const lower = hostname.toLowerCase();
   const bare = lower.replace(/^\[|\]$/g, "");
@@ -59,12 +70,10 @@ async function assertPublicResolvableHost(hostname: string): Promise<void> {
 
 function portAllowed(url: URL): boolean {
   if (!url.port) return true;
-  if (url.protocol === "http:" && url.port === "80") return true;
-  if (url.protocol === "https:" && url.port === "443") return true;
-  return false;
+  return url.protocol === "https:" && url.port === "443";
 }
 
-/** Дозволені лише публічні http(s) URL без нестандартних портів. */
+/** Дозволені лише публічні https URL без нестандартних портів. */
 export function checkPublicHttpUrl(raw: string): { ok: true; url: URL } | { ok: false; error: string } {
   const trimmed = raw.trim();
   if (!trimmed) return { ok: false, error: "Вкажіть адресу сторінки з рецептом" };
@@ -74,8 +83,8 @@ export function checkPublicHttpUrl(raw: string): { ok: true; url: URL } | { ok: 
   } catch {
     return { ok: false, error: "Некоректна адреса" };
   }
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    return { ok: false, error: "Підтримуються лише адреси http або https" };
+  if (url.protocol !== "https:") {
+    return { ok: false, error: "Підтримуються лише захищені https-адреси" };
   }
   if (url.username || url.password) {
     return { ok: false, error: "Адреса з логіном і паролем не підтримується" };
@@ -84,23 +93,85 @@ export function checkPublicHttpUrl(raw: string): { ok: true; url: URL } | { ok: 
     return { ok: false, error: "Локальні й приватні адреси заборонені" };
   }
   if (!portAllowed(url)) {
-    return { ok: false, error: "Дозволені лише стандартні порти (80 і 443)" };
+    return { ok: false, error: "Дозволені лише стандартні порти (443)" };
   }
   return { ok: true, url };
 }
 
 const MAX_REDIRECTS = 5;
 
+function initHeaders(init: Omit<RequestInit, "redirect">): Record<string, string> {
+  const raw = init.headers;
+  if (!raw) return {};
+  if (raw instanceof Headers) {
+    return Object.fromEntries(raw.entries());
+  }
+  if (Array.isArray(raw)) {
+    return Object.fromEntries(raw.map(([k, v]) => [k, String(v)]));
+  }
+  return Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, String(v)]));
+}
+
+function nodeHttpsRequest(url: URL, headers: Record<string, string>, signal?: AbortSignal | null): Promise<Response> {
+  return new Promise((resolve, reject) => {
+    const req = https.request(
+      {
+        hostname: url.hostname,
+        port: url.port ? Number(url.port) : 443,
+        path: `${url.pathname}${url.search}`,
+        method: "GET",
+        headers,
+      },
+      (res) => {
+        const responseHeaders = new Headers();
+        for (const [key, value] of Object.entries(res.headers)) {
+          if (value === undefined) continue;
+          responseHeaders.set(key, Array.isArray(value) ? value.join(", ") : value);
+        }
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            res.on("data", (chunk: Buffer) => controller.enqueue(new Uint8Array(chunk)));
+            res.on("end", () => controller.close());
+            res.on("error", (err) => controller.error(err));
+          },
+        });
+        resolve(new Response(body, { status: res.statusCode ?? 502, headers: responseHeaders }));
+      },
+    );
+    const onAbort = () => {
+      req.destroy();
+      reject(new DOMException("The operation was aborted", "TimeoutError"));
+    };
+    req.on("error", reject);
+    if (signal) {
+      if (signal.aborted) {
+        onAbort();
+        return;
+      }
+      signal.addEventListener("abort", onAbort, { once: true });
+    }
+    req.end();
+  });
+}
+
 /** Завантажує публічну сторінку без автоматичного follow — кожне перенаправлення перевіряється. */
 export async function fetchPublicHttpResponse(
   url: URL,
-  fetchImpl: typeof fetch,
+  fetchImpl: typeof fetch | undefined,
   init: Omit<RequestInit, "redirect">,
 ): Promise<Response> {
+  const headers = initHeaders(init);
+  const signal = init.signal ?? undefined;
   let current = url;
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     await assertPublicResolvableHost(current.hostname);
-    const response = await fetchImpl(current.toString(), { ...init, redirect: "manual" });
+    if (current.protocol !== "https:") {
+      throw new PublicFetchError(400, "Підтримуються лише захищені https-адреси");
+    }
+
+    const response = fetchImpl
+      ? await fetchImpl(current.toString(), { ...init, redirect: "manual" })
+      : await nodeHttpsRequest(current, headers, signal);
     const status = response.status;
     if (status >= 300 && status < 400) {
       const location = response.headers.get("location");
@@ -113,14 +184,4 @@ export async function fetchPublicHttpResponse(
     return response;
   }
   throw new PublicFetchError(502, "Забагато перенаправлень");
-}
-
-export class PublicFetchError extends Error {
-  readonly status: number;
-
-  constructor(status: number, message: string) {
-    super(message);
-    this.name = "PublicFetchError";
-    this.status = status;
-  }
 }

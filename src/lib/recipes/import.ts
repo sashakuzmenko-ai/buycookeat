@@ -75,14 +75,41 @@ export class ImportRecipeError extends Error {
   }
 }
 
-/** Дозволені лише публічні http(s) URL без нестандартних портів. */
+/** Дозволені лише публічні https URL без нестандартних портів. */
 export function checkRecipeUrl(raw: string): { ok: true; url: URL } | { ok: false; error: string } {
   return checkPublicHttpUrl(raw);
 }
 
+function stripTaggedBlocks(html: string, tag: string): string {
+  const lower = html.toLowerCase();
+  const endTag = `</${tag}>`;
+  let result = "";
+  let cursor = 0;
+  while (cursor < html.length) {
+    const openIdx = lower.indexOf(`<${tag}`, cursor);
+    if (openIdx < 0) {
+      result += html.slice(cursor);
+      break;
+    }
+    result += html.slice(cursor, openIdx);
+    const closeIdx = lower.indexOf(endTag, openIdx);
+    if (closeIdx < 0) break;
+    cursor = closeIdx + endTag.length;
+  }
+  return result;
+}
+
+function asTrimmedString(value: unknown, max: number): string {
+  if (typeof value === "string") return value.trim().slice(0, max);
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return String(value).trim().slice(0, max);
+  }
+  return "";
+}
+
 export function htmlToPlainText(html: string): string {
-  let text = html.replaceAll(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ");
-  text = text.replaceAll(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ");
+  let text = stripTaggedBlocks(html, "script");
+  text = stripTaggedBlocks(text, "style");
   text = text.replaceAll(/<[^>]+>/g, " ");
   text = text
     .replaceAll(/&nbsp;/gi, " ")
@@ -95,7 +122,7 @@ export function htmlToPlainText(html: string): string {
 }
 
 /** Завантажує сторінку, знімає розмітку й обрізає текст для моделі. */
-export async function fetchRecipePage(url: URL, fetchImpl: typeof fetch = fetch): Promise<string> {
+export async function fetchRecipePage(url: URL, fetchImpl?: typeof fetch): Promise<string> {
   let response: Response;
   try {
     response = await fetchPublicHttpResponse(url, fetchImpl, {
@@ -140,13 +167,13 @@ function readDraftItem(
   byName: ReadonlyMap<string, string>,
 ): { ingredient: RecipeDraft["ingredients"][number] | null; unmatched: UnmatchedItem | null } {
   const quantity = Number(row.quantity);
-  if (!(quantity > 0) || !Number.isFinite(quantity)) return { ingredient: null, unmatched: null };
-  const raw = String(row.raw ?? "").trim().slice(0, 120);
+  if (quantity <= 0 || !Number.isFinite(quantity)) return { ingredient: null, unmatched: null };
+  const raw = asTrimmedString(row.raw, 120);
   const optional = Boolean(row.optional);
   const unit = cleanUnit(row.unit);
   const qty = roundScanQty(quantity);
   const matched = productByListNumber(row.product_number, products);
-  const name = String(row.name ?? "").trim().slice(0, 80);
+  const name = asTrimmedString(row.name, 80);
   const productId = matched?.id ?? (name ? byName.get(productKey(name)) : undefined);
   if (productId) {
     return {
@@ -181,9 +208,9 @@ export function normalizeRecipeDraft(parsed: unknown, products: readonly Catalog
   const mealRaw = Array.isArray(record.meal_types) ? record.meal_types.map(String) : [];
   const meal_types = mealRaw.filter((m): m is (typeof MEAL_TYPES)[number] => (MEAL_TYPES as readonly string[]).includes(m));
   return {
-    title: String(record.title ?? "").trim().slice(0, 120) || "Рецепт без назви",
-    description: String(record.description ?? "").trim().slice(0, 2000),
-    instructions: String(record.instructions ?? "").trim().slice(0, 8000),
+    title: asTrimmedString(record.title, 120) || "Рецепт без назви",
+    description: asTrimmedString(record.description, 2000),
+    instructions: asTrimmedString(record.instructions, 8000),
     base_servings,
     cook_minutes,
     meal_types,
@@ -202,7 +229,7 @@ export type ImportRecipeDraftInput = {
 
 export async function importRecipeDraft(input: ImportRecipeDraftInput): Promise<RecipeDraft> {
   if (!input.apiKey) throw new ImportRecipeError(503, "Не задано OPENROUTER_API_KEY — імпорт недоступний");
-  const call = input.fetchImpl ?? fetch;
+  const call = input.fetchImpl;
   const pageText = await fetchRecipePage(input.url, call);
   const model = input.model || process.env.OPENROUTER_MODEL || "google/gemini-3.8-flash";
   const { parsed } = await openRouterJsonChat(
@@ -214,7 +241,7 @@ export async function importRecipeDraft(input: ImportRecipeDraftInput): Promise<
       system: buildRecipePrompt(input.products),
       user: `URL: ${input.url.toString()}\n\nТекст сторінки:\n${pageText}`,
       maxTokens: 6000,
-      fetchImpl: call,
+      fetchImpl: call ?? fetch,
     },
     (status, message) => new ImportRecipeError(status, message),
   );
