@@ -15,7 +15,9 @@ import {
   type StoreProductInput,
 } from "@/lib/prices";
 import { generateShopping, stockBought } from "./actions";
+import { SendListButton } from "@/components/shopping/SendListButton";
 import { SummaryBanner } from "@/components/shopping/SummaryBanner";
+import { groupShoppingByStore, sortShoppingItems } from "@/lib/shopping-present";
 import { ShoppingDesktopList, type StoreGroup } from "@/components/shopping/ShoppingDesktopList";
 import { ShoppingMobileList } from "@/components/shopping/ShoppingMobileList";
 import { PriceComparisonSection } from "@/components/shopping/PriceComparisonSection";
@@ -101,29 +103,14 @@ export default async function ShoppingPage({ searchParams }: PageProps<"/shoppin
     };
   });
 
-  // 3. Сортування позицій: некуплені зверху, далі за назвою
-  const sorted = [...viewItems].sort((a, b) => {
-    if (a.checked !== b.checked) return Number(a.checked) - Number(b.checked);
-    return a.productName.localeCompare(b.productName, "uk");
-  });
-
-  // 4. Групування за магазинами. Позиції без магазину — окрема група
-  const groups: StoreGroup[] = [
-    {
-      storeId: null,
-      storeName: "Без магазину",
-      items: sorted.filter((i) => !i.store_id || !stores.some((s) => s.id === i.store_id)),
+  // 3–4. Сортування та групування за магазинами (спільна логіка з Telegram)
+  const sorted = sortShoppingItems(viewItems);
+  const groups: StoreGroup[] = groupShoppingByStore(sorted, stores)
+    .map((g) => ({
+      ...g,
       estimatedSum: 0,
       hasPricedItems: false,
-    },
-    ...stores.map((s) => ({
-      storeId: s.id,
-      storeName: s.name,
-      items: sorted.filter((i) => i.store_id === s.id),
-      estimatedSum: 0,
-      hasPricedItems: false,
-    })),
-  ]
+    }))
     .map((g) => {
       const sum = g.items.reduce((acc, i) => acc + (i.estimatedPrice ?? 0), 0);
       const hasPriced = g.items.some((i) => i.estimatedPrice != null);
@@ -200,6 +187,8 @@ export default async function ShoppingPage({ searchParams }: PageProps<"/shoppin
               {hasPlanItems ? "Перерахувати з меню" : "Зібрати з меню"}
             </button>
           </form>
+
+          <SendListButton week={week} />
 
           {toStock > 0 && (
             <form action={stockBought}>
