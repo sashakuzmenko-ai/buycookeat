@@ -241,42 +241,42 @@ export async function deleteEquipment(formData: FormData) {
 
 export async function createTelegramLink() {
   const { supabase, householdId, user } = await getContext();
-  const { data: existing, error: readError } = await supabase
+  const nowIso = new Date().toISOString();
+  const { error: cleanupError } = await supabase
     .from("channel_bindings")
-    .select("id, linked_at")
+    .delete()
     .eq("household_id", householdId)
     .eq("user_id", user.id)
-    .eq("channel", "telegram");
-  if (readError) fail("/settings", readError.message);
-  if ((existing ?? []).some((row) => row.linked_at)) {
-    revalidatePath("/settings");
-    return;
-  }
+    .eq("channel", "telegram")
+    .is("linked_at", null)
+    .lt("link_code_expires_at", nowIso);
+  if (cleanupError) fail("/settings", cleanupError.message);
+
   const { code, expiresAt } = createLinkCode();
-  const { error } = await supabase.from("channel_bindings").upsert(
-    {
-      household_id: householdId,
-      user_id: user.id,
-      channel: "telegram",
-      external_id: pendingExternalId(user.id),
-      link_code: code,
-      link_code_expires_at: expiresAt,
-      linked_at: null,
-    },
-    { onConflict: "channel,external_id" },
-  );
+  const { error } = await supabase.from("channel_bindings").insert({
+    household_id: householdId,
+    user_id: user.id,
+    channel: "telegram",
+    external_id: pendingExternalId(user.id, code),
+    link_code: code,
+    link_code_expires_at: expiresAt,
+    linked_at: null,
+  });
   if (error) fail("/settings", error.message);
   revalidatePath("/settings");
   revalidatePath("/scan");
 }
 
-export async function unlinkTelegram() {
-  const { supabase, householdId, user } = await getContext();
+export async function unlinkTelegram(formData: FormData) {
+  const { supabase, householdId } = await getContext();
+  const id = uuidOrNull(str(formData, "id"));
+  if (!id) fail("/settings", "Некоректний ідентифікатор");
+
   const { error } = await supabase
     .from("channel_bindings")
     .delete()
+    .eq("id", id)
     .eq("household_id", householdId)
-    .eq("user_id", user.id)
     .eq("channel", "telegram");
   if (error) fail("/settings", error.message);
   revalidatePath("/settings");

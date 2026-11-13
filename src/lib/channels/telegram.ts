@@ -5,7 +5,16 @@
 
 import { SCAN_LIMITS } from "../scan-types.ts";
 import { QUICK_HINTS } from "./copy.ts";
-import type { ChannelMedia, ChannelUpdate, InboundMessage, MediaFailure, MediaPayload, OutboundMessage, ScanChannel } from "./types.ts";
+import type {
+  ChannelMedia,
+  ChannelUpdate,
+  InboundMessage,
+  MediaFailure,
+  MediaPayload,
+  OutboundMessage,
+  ScanChannel,
+  TelegramChatType,
+} from "./types.ts";
 
 export const TELEGRAM_FETCH_LIMIT = SCAN_LIMITS.maxBodyBytes;
 
@@ -102,28 +111,62 @@ function documentMedia(document: Json): { media: ChannelMedia; inputType: Inboun
   return null;
 }
 
+function telegramChatType(raw: string): TelegramChatType {
+  if (raw === "private" || raw === "group" || raw === "supergroup" || raw === "channel") return raw;
+  return "other";
+}
+
+function telegramChatTitle(chat: Json, from: Json): string | null {
+  const type = textOf(chat.type);
+  if (type === "private") {
+    const parts = [textOf(from.first_name), textOf(from.last_name)].filter(Boolean);
+    if (parts.length) return parts.join(" ");
+    const username = textOf(from.username).replace(/^@/, "");
+    return username ? `@${username}` : null;
+  }
+  const title = textOf(chat.title);
+  return title || null;
+}
+
+function inboundBase(message: Json, from: Json, chat: Json) {
+  const senderId = textOf(from.id);
+  const chatId = textOf(chat.id);
+  if (!senderId || !chatId) return null;
+  return {
+    senderId,
+    chatId,
+    chatType: telegramChatType(textOf(chat.type)),
+    chatTitle: telegramChatTitle(chat, from),
+  };
+}
+
 function readMessage(message: Json): ChannelUpdate {
   const from = record(message.from);
   const chat = record(message.chat);
   if (!from || !chat || from.is_bot) return { kind: "ignore" };
-  const senderId = textOf(from.id);
-  const chatId = textOf(chat.id);
-  if (!senderId || !chatId) return { kind: "ignore" };
+  const base = inboundBase(message, from, chat);
+  if (!base) return { kind: "ignore" };
   const text = textOf(message.text) || textOf(message.caption);
   const startCode = startArgument(text);
   const media = mediaOf(message);
   if (media === "large") {
     return {
       kind: "message",
-      message: { senderId, chatId, inputType: "video", text, media: null, startCode: null, oversized: true },
+      message: {
+        ...base,
+        inputType: "video",
+        text,
+        media: null,
+        startCode: null,
+        oversized: true,
+      },
     };
   }
   if (!media && !text.trim()) return { kind: "ignore" };
   return {
     kind: "message",
     message: {
-      senderId,
-      chatId,
+      ...base,
       inputType: media?.inputType ?? "text",
       text: startCode === null ? text : "",
       media: media?.media ?? null,
