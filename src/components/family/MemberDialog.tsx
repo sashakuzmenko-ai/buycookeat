@@ -277,7 +277,7 @@ export function MemberDialog({ isOpen, onClose, member }: MemberDialogProps) {
         e.preventDefault();
         onClose();
       }}
-      className="m-auto w-full max-w-lg rounded-[22px] border border-line bg-surface p-6 shadow-xl backdrop:bg-ink/40 open:flex open:flex-col open:gap-5"
+      className="m-auto w-full max-w-lg rounded-[22px] border border-line bg-surface p-6 backdrop:bg-ink/40 open:flex open:flex-col open:gap-5"
     >
       <MemberForm key={member?.id ?? "new"} member={member} onClose={onClose} />
     </dialog>

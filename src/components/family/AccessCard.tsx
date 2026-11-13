@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import { Button } from "@/components/ui";
 import { TelegramLink, type TelegramLinkState } from "./TelegramLink";
 
 export interface HouseholdUserInfo {
@@ -18,21 +16,6 @@ export interface AccessCardProps {
 }
 
 export function AccessCard({ users, telegram, linkedUserIds }: AccessCardProps) {
-  const [copied, setCopied] = useState(false);
-
-  const handleInvite = async () => {
-    try {
-      if (typeof window !== "undefined") {
-        await navigator.clipboard.writeText(window.location.origin);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2500);
-      }
-    } catch {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    }
-  };
-
   return (
     <section
       id="access"
@@ -73,18 +56,13 @@ export function AccessCard({ users, telegram, linkedUserIds }: AccessCardProps) 
         )}
       </div>
 
-      <TelegramLink linked={telegram.linked} code={telegram.code} expiresLabel={telegram.expiresLabel} botUrl={telegram.botUrl} />
+      <TelegramLink {...telegram} />
 
-      <div className="mt-2">
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={handleInvite}
-          className="w-full text-[14px]"
-        >
-          {copied ? "Посилання скопійовано!" : "Запросити за посиланням"}
-        </Button>
-      </div>
+      <p className="mt-2 text-[13px] leading-relaxed text-ink-2">
+        Поки що сім&apos;я ділить один логін: усі, хто заходить під цим обліковим записом, бачать одну домогосподарство.
+        Якщо нова людина зареєструється сама, вона отримає окрему сім&apos;ю. Запрошення за окремим посиланням додамо
+        пізніше.
+      </p>
     </section>
   );
 }

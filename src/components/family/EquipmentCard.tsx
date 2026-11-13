@@ -63,7 +63,7 @@ export function EquipmentCard({ equipment }: EquipmentCardProps) {
               onClick={() => handleToggle(item)}
               className={`flex h-11 items-center justify-center rounded-full border px-3.5 text-[14px] font-semibold transition-colors disabled:opacity-60 ${
                 isOn
-                  ? "border-family bg-family text-white shadow-xs"
+                  ? "border-family bg-family text-white"
                   : "border-line-strong bg-surface text-ink hover:bg-soft"
               }`}
             >

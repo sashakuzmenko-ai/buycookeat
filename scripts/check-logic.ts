@@ -992,7 +992,8 @@ assert.equal(supabaseServerKey({ secretKey: "sb_secret_new", serviceRoleKey: "le
 assert.equal(supabaseServerKey({ serviceRoleKey: "legacy" }), "legacy");
 assert.equal(missingBotEnv({ token: "t", webhookSecret: "s", supabaseUrl: "https://db", serviceRoleKey: "legacy" }).length, 0);
 
-assert.equal(pendingExternalId(userA), `pending:${userA}`);
+assert.equal(pendingExternalId(userA, "CODEONE"), `pending:${userA}:CODEONE`);
+assert.notEqual(pendingExternalId(userA, "CODEONE"), pendingExternalId(userA, "CODETWO"));
 assert.equal(normalizeLinkCode(" abcd efgh "), "ABCDEFGH");
 assert.equal(linkCodeFromBytes(Uint8Array.from([0, 1])), "AB");
 const freshCode = {
@@ -1033,7 +1034,23 @@ if (voiceUpdate.kind === "message") {
   assert.equal(voiceUpdate.message.inputType, "voice");
   assert.equal(voiceUpdate.message.senderId, "42");
   assert.equal(voiceUpdate.message.chatId, "42");
+  assert.equal(voiceUpdate.message.chatType, "private");
+  assert.equal(voiceUpdate.message.chatTitle, "Оля");
   assert.equal(voiceUpdate.message.media?.fileId, "voice-1");
+}
+const groupUpdate = readTelegramUpdate({
+  update_id: 3,
+  message: {
+    message_id: 1,
+    from: { id: 42, is_bot: false, first_name: "Оля" },
+    chat: { id: -100, type: "supergroup", title: "Родина Ку" },
+    text: "привіт",
+  },
+});
+assert.equal(groupUpdate.kind, "message");
+if (groupUpdate.kind === "message") {
+  assert.equal(groupUpdate.message.chatType, "supergroup");
+  assert.equal(groupUpdate.message.chatTitle, "Родина Ку");
 }
 const photoUpdate = tgMessage({ photo: [{ file_id: "small", file_size: 100 }, { file_id: "big", file_size: 2000 }] });
 if (photoUpdate.kind === "message") assert.equal(photoUpdate.message.inputType, "receipt");

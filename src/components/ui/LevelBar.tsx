@@ -1,5 +1,5 @@
 import React from "react";
-import { type ModuleName, MODULE_THEMES } from "./tokens";
+import { type ModuleName, MODULE_THEMES, BASE_COLORS } from "./tokens";
 
 export type LevelState = "normal" | "low" | "expiring";
 
@@ -16,14 +16,14 @@ export interface LevelBarProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const STATE_CONFIG: Record<LevelState, { color: string; defaultLabel: string; noteColor: string }> = {
-  normal: { color: "", defaultLabel: "норма", noteColor: "#4A5750" },
-  low: { color: "#8A5600", defaultLabel: "мало", noteColor: "#6B4300" },
-  expiring: { color: "#B23A24", defaultLabel: "термін", noteColor: "#8C2A18" },
+  normal: { color: "", defaultLabel: "норма", noteColor: BASE_COLORS.ink2 },
+  low: { color: MODULE_THEMES.shops.color, defaultLabel: "мало", noteColor: MODULE_THEMES.shops.ink },
+  expiring: { color: MODULE_THEMES.recipes.color, defaultLabel: "термін", noteColor: MODULE_THEMES.recipes.ink },
 };
 
 /**
  * Шкала залишку: доріжка 8 px track, заповнення кольором модуля;
- * «мало» — #8A5600, «термін» — #B23A24.
+ * «мало» — MODULE_THEMES.shops.color, «термін» — MODULE_THEMES.recipes.color.
  * Обов'язковий текстовий підпис стану (норма / мало / термін).
  */
 export function LevelBar({

@@ -129,6 +129,20 @@ const { ownRows: cbA, otherRows: cbB } = await rlsCheck(
   null
 );
 
+await runAs(a, `insert into channel_bindings (household_id, user_id, channel, external_id, title, chat_type, linked_at) values ('${hid}', '${a}', 'telegram', '20001', 'Родина', 'group', now())`);
+await runAs(a, `insert into channel_bindings (household_id, user_id, channel, external_id, title, chat_type, linked_at) values ('${hid}', '${a}', 'telegram', '20002', 'Оля', 'private', now())`);
+const multiBindings = await runAs(
+  a,
+  `select id, title, chat_type from channel_bindings where household_id = '${hid}' and user_id = '${a}' and linked_at is not null order by external_id`,
+);
+const multiBindingsOk =
+  multiBindings.length >= 2 &&
+  multiBindings.some((row) => row.title === "Родина" && row.chat_type === "group") &&
+  multiBindings.some((row) => row.title === "Оля" && row.chat_type === "private");
+console.log(
+  `Два Telegram-чати на одного користувача: ${multiBindings.length} рядків, title/chat_type — ${multiBindingsOk ? "OK" : "FAIL"}`,
+);
+
 // ---------- confirm_scan у режимі add: збільшує запас і створює чек ----------
 
 await runAs(a, `delete from incoming_scans`);
@@ -226,7 +240,17 @@ const newTablesOk =
   scansA.length === 1 && scansB.length === 0 && scanBlocked &&
   cbA.length === 1 && cbB.length === 0;
 
-const pass = seenByA.length === 1 && seenByB.length === 0 && blocked && pantryOk && newTablesOk && confirmOk && channelClosed && foreignConfirmBlocked && serviceConfirmed;
+const pass =
+  seenByA.length === 1 &&
+  seenByB.length === 0 &&
+  blocked &&
+  pantryOk &&
+  newTablesOk &&
+  multiBindingsOk &&
+  confirmOk &&
+  channelClosed &&
+  foreignConfirmBlocked &&
+  serviceConfirmed;
 console.log(`RLS: власник бачить ${seenByA.length}, сторонній бачить ${seenByB.length}, чужий запис ${blocked ? "заблоковано" : "ПРОЙШОВ"}`);
 console.log(`Нові таблиці RLS: ${newTablesOk ? "OK" : "FAIL"}`);
 console.log(`Підтвердження скану: ${confirmOk ? "OK" : "FAIL"}`);

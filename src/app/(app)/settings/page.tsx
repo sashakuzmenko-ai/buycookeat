@@ -3,8 +3,25 @@ import { Notice } from "@/components/Notice";
 import { FamilyScreen } from "@/components/family/FamilyScreen";
 import type { HouseholdUserInfo } from "@/components/family/AccessCard";
 import type { StoreItem } from "@/components/family/StoresSection";
-import { linkCodeUsable, pendingExternalId } from "@/lib/channels/bind";
+import { linkCodeUsable } from "@/lib/channels/bind";
 import { lookupBotUsername } from "@/lib/channels/telegram";
+import type { TelegramBindingView } from "@/components/family/TelegramLink";
+
+const kyivDate = new Intl.DateTimeFormat("uk-UA", {
+  timeZone: "Europe/Kyiv",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+function chatTypeLabel(raw: string | null): string {
+  if (raw === "private") return "Особистий чат";
+  if (raw === "group" || raw === "supergroup") return "Група";
+  if (raw === "channel") return "Канал";
+  return "Чат";
+}
 
 export default async function SettingsPage({ searchParams }: PageProps<"/settings">) {
   const { supabase, family, portions, household, householdId, user } = await getContext();
@@ -27,7 +44,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
       .order("created_at"),
     supabase
       .from("channel_bindings")
-      .select("user_id, external_id, link_code, link_code_expires_at, linked_at")
+      .select("id, user_id, external_id, title, chat_type, link_code, link_code_expires_at, linked_at")
       .eq("household_id", householdId)
       .eq("channel", "telegram"),
   ]);
@@ -46,12 +63,34 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
     household.monthly_budget != null ? Number(household.monthly_budget) : null;
 
   const bindings = bindingsRes.data ?? [];
-  const linkedUserIds = bindings.filter((row) => row.linked_at).map((row) => String(row.user_id));
-  const mine =
-    bindings.find((row) => row.user_id === user.id && row.linked_at) ??
-    bindings.find((row) => row.user_id === user.id && row.external_id === pendingExternalId(user.id));
-  const expiresMs = mine?.link_code_expires_at ? Date.parse(String(mine.link_code_expires_at)) : Number.NaN;
-  const code = !mine?.linked_at && mine?.link_code && linkCodeUsable(String(mine.link_code_expires_at)) ? String(mine.link_code) : null;
+  const linkedRows = bindings.filter((row) => row.linked_at);
+  const linkedUserIds = [...new Set(linkedRows.map((row) => String(row.user_id)))];
+  const linkedCount = linkedRows.length;
+
+  const bindingViews: TelegramBindingView[] = linkedRows.map((row) => ({
+    id: String(row.id),
+    title: String(row.title ?? "").trim() || `Чат ${row.external_id}`,
+    chatTypeLabel: chatTypeLabel(row.chat_type ? String(row.chat_type) : null),
+    linkedAtLabel: kyivDate.format(new Date(String(row.linked_at))),
+  }));
+
+  const pendingMine = bindings
+    .filter(
+      (row) =>
+        row.user_id === user.id &&
+        !row.linked_at &&
+        row.link_code &&
+        linkCodeUsable(String(row.link_code_expires_at)),
+    )
+    .sort(
+      (a, b) =>
+        Date.parse(String(b.link_code_expires_at)) - Date.parse(String(a.link_code_expires_at)),
+    );
+  const activePending = pendingMine[0];
+  const expiresMs = activePending?.link_code_expires_at
+    ? Date.parse(String(activePending.link_code_expires_at))
+    : Number.NaN;
+  const code = activePending?.link_code ? String(activePending.link_code) : null;
   const username = code ? await lookupBotUsername(process.env.TELEGRAM_BOT_TOKEN ?? "") : null;
 
   return (
@@ -63,17 +102,10 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
         equipment={equipment}
         users={users}
         telegram={{
-          linked: linkedUserIds.includes(user.id),
+          linkedCount,
+          bindings: bindingViews,
           code,
-          expiresLabel: code
-            ? new Intl.DateTimeFormat("uk-UA", {
-                timeZone: "Europe/Kyiv",
-                day: "numeric",
-                month: "long",
-                hour: "2-digit",
-                minute: "2-digit",
-              }).format(new Date(expiresMs))
-            : null,
+          expiresLabel: code ? kyivDate.format(new Date(expiresMs)) : null,
           botUrl: username && code ? `https://t.me/${encodeURIComponent(username)}?start=${encodeURIComponent(code)}` : null,
         }}
         linkedUserIds={linkedUserIds}

@@ -65,6 +65,8 @@ export type ChannelBindingRow = {
   user_id: string;
   channel: string;
   external_id: string;
+  title: string | null;
+  chat_type: string | null;
   link_code: string | null;
   link_code_expires_at: string | null;
   linked_at: string | null;

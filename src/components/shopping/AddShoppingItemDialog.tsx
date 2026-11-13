@@ -41,7 +41,7 @@ export function AddShoppingItemDialog({
         ref={dialogRef}
         onClose={() => setIsOpen(false)}
         aria-labelledby="add-item-dialog-title"
-        className="fixed inset-0 m-auto bg-surface rounded-[20px] max-w-md w-full shadow-xl overflow-hidden border border-line p-5 backdrop:bg-ink/60 backdrop:backdrop-blur-xs"
+        className="fixed inset-0 m-auto bg-surface rounded-[20px] max-w-md w-full overflow-hidden border border-line p-5 backdrop:bg-ink/60 backdrop:backdrop-blur-xs"
       >
         <div className="flex items-center justify-between pb-3 border-b border-soft mb-4">
           <h2 id="add-item-dialog-title" className="text-lg font-bold text-ink">

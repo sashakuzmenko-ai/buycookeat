@@ -4,8 +4,8 @@ const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 export const LINK_CODE_TTL_MS = 20 * 60 * 1000;
 
-export function pendingExternalId(userId: string): string {
-  return `pending:${userId}`;
+export function pendingExternalId(userId: string, code: string): string {
+  return `pending:${userId}:${code}`;
 }
 
 export function linkCodeFromBytes(bytes: Uint8Array): string {
