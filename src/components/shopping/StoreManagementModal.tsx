@@ -43,7 +43,7 @@ export function StoreManagementModal({ stores, week }: Readonly<StoreManagementM
         ref={dialogRef}
         onClose={() => setIsOpen(false)}
         aria-labelledby="store-dialog-title"
-        className="fixed inset-0 m-auto bg-surface rounded-[20px] max-w-xl w-full max-h-[90vh] flex flex-col shadow-xl overflow-hidden border border-line p-0 backdrop:bg-ink/60 backdrop:backdrop-blur-xs"
+        className="fixed inset-0 m-auto bg-surface rounded-[20px] max-w-xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-line p-0 backdrop:bg-ink/60 backdrop:backdrop-blur-xs"
       >
         <div className="p-5 border-b border-soft flex items-center justify-between">
           <h2 id="store-dialog-title" className="text-lg font-bold text-ink">

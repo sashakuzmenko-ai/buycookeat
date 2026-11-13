@@ -82,3 +82,10 @@ export const BASE_COLORS = {
   inkRaised: "#24332B",
   inkMutedOnDark: "#D5DDD7",
 } as const;
+
+export const HOME_THEME: ModuleTheme = {
+  name: "Огляд",
+  color: BASE_COLORS.ink,
+  tint: BASE_COLORS.soft,
+  ink: BASE_COLORS.ink,
+};
