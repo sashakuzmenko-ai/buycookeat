@@ -16,6 +16,7 @@ export interface FamilyScreenProps {
   family: FamilyMember[];
   portions: number;
   monthlyBudget: number | null;
+  paceAlertEnabled?: boolean;
   equipment: { id: string; name: string }[];
   users: HouseholdUserInfo[];
   telegram: TelegramLinkState;
@@ -28,6 +29,7 @@ export function FamilyScreen({
   family,
   portions,
   monthlyBudget,
+  paceAlertEnabled,
   equipment,
   users,
   telegram,
@@ -227,7 +229,10 @@ export function FamilyScreen({
 
       {/* Основна сітка блоків: Бюджет, Техніка, Доступ за концептом WebFamily.dc.html */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3 items-start">
-        <BudgetCard initialMonthlyBudget={monthlyBudget} />
+        <BudgetCard
+          initialMonthlyBudget={monthlyBudget}
+          initialPaceAlertEnabled={paceAlertEnabled}
+        />
         <EquipmentCard equipment={equipment} />
         <AccessCard users={users} telegram={telegram} linkedUserIds={linkedUserIds} />
       </div>

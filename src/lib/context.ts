@@ -29,7 +29,7 @@ export const getContext = cache(async () => {
   const { supabase, user } = await requireUser();
   const { data: link, error: linkError } = await supabase
     .from("household_users")
-    .select("household_id, households(id, name, city, monthly_budget)")
+    .select("household_id, households(id, name, city, monthly_budget, pace_alert_enabled, pace_alert_sent_on)")
     .eq("user_id", user.id)
     .order("created_at")
     .limit(1)
@@ -59,6 +59,8 @@ export const getContext = cache(async () => {
     name: string;
     city: string | null;
     monthly_budget?: number | null;
+    pace_alert_enabled?: boolean;
+    pace_alert_sent_on?: string | null;
   };
   return {
     supabase,

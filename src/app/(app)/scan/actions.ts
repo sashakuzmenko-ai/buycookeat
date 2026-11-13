@@ -8,6 +8,8 @@ import { commitPendingScan, resolveScanItems } from "@/lib/scan/commit";
 import { cleanCategory, cleanUnit, roundScanQty } from "@/lib/scan/products";
 import { parseScanItems } from "@/lib/scan/present";
 import type { ScanItem, ScanMode } from "@/lib/scan-types";
+import { maybeSendPaceAlert } from "@/lib/channels/notify";
+import { todayISO } from "@/lib/dates";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -86,6 +88,11 @@ export async function confirmScan(scanId: string): Promise<ScanActionResult> {
   const { supabase, householdId } = await getContext();
   const committed = await commitPendingScan(supabase, householdId, scanId);
   if (!committed.ok) return { error: committed.error };
+  try {
+    await maybeSendPaceAlert(supabase, householdId, todayISO());
+  } catch (err) {
+    console.error("maybeSendPaceAlert in confirmScan failed", err);
+  }
   refreshConfirmed();
   return { error: null, items: committed.items };
 }

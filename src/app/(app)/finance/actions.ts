@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getContext } from "@/lib/context";
 import { todayISO } from "@/lib/dates";
 import { financePath, isIsoDate, parseMoney, parsePeriod } from "@/lib/finance";
+import { maybeSendPaceAlert } from "@/lib/channels/notify";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_TOTAL = 99_999_999.99;
@@ -41,6 +42,12 @@ export async function createReceipt(formData: FormData) {
     input_source: "manual",
   });
   if (error) fail(back, "Не вдалося записати чек. Спробуйте ще раз.");
+
+  try {
+    await maybeSendPaceAlert(supabase, householdId, todayISO());
+  } catch (err) {
+    console.error("maybeSendPaceAlert in createReceipt failed", err);
+  }
 
   const next = parsePeriod(String(formData.get("range") ?? ""), purchasedAt, todayISO());
   done(financePath(next.kind, next.anchor), "Чек записано");
