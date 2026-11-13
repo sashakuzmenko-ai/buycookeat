@@ -1,6 +1,8 @@
 // Розпізнавання продуктів через OpenRouter.
 // Не знає про HTTP-запит, чергу й канал: на вході медіа або текст і довідник сім'ї.
 
+import { productByListNumber } from "../catalog/product-number.ts";
+import { openRouterJsonChat } from "../openrouter/json-chat.ts";
 import { PRODUCT_CATEGORIES } from "../seed-data.ts";
 import { SCAN_LIMITS, type ScanItem, type ScanMode, type ScanResult, type ScanSource } from "../scan-types.ts";
 import { cleanCategory, cleanUnit, roundScanQty } from "./products.ts";
@@ -92,16 +94,10 @@ ${list || "(порожній)"}`;
 
 type ModelRow = Record<string, unknown>;
 
-function matchedProduct(row: ModelRow, products: readonly CatalogProduct[]): CatalogProduct | null {
-  const number = Number(row.product_number);
-  if (!Number.isInteger(number) || number < 1 || number > products.length) return null;
-  return products[number - 1] ?? null;
-}
-
 function readItem(row: ModelRow, products: readonly CatalogProduct[]): ScanItem | null {
   const quantity = Number(row.quantity);
   if (!(quantity > 0) || !Number.isFinite(quantity)) return null;
-  const matched = matchedProduct(row, products);
+  const matched = productByListNumber(row.product_number, products);
   const name = String(row.name ?? "").trim().slice(0, 80);
   if (!matched && !name) return null;
   const price = Number(row.price);
@@ -153,26 +149,6 @@ function userText(input: RecognizeInput): string {
   return lines.join("\n");
 }
 
-type OpenRouterPayload = {
-  error?: { message?: string };
-  choices?: { message?: { content?: string }; finish_reason?: string }[];
-  usage?: { cost?: number };
-};
-
-function readModelText(payload: OpenRouterPayload): string {
-  const text = payload.choices?.[0]?.message?.content;
-  if (text) return text;
-  throw new RecognizeError(502, "Модель повернула порожню відповідь");
-}
-
-function parseModelJson(text: string, finishReason: string | undefined): unknown {
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw new RecognizeError(502, finishReason === "length" ? "Відповідь обрізано — забагато позицій, спробуйте частинами" : "Модель повернула некоректні дані");
-  }
-}
-
 export async function recognize(input: RecognizeInput): Promise<ScanResult> {
   if (!input.apiKey) throw new RecognizeError(503, "Не задано OPENROUTER_API_KEY — розпізнавання недоступне");
   const images = input.images.slice(0, SCAN_LIMITS.maxImages);
@@ -192,44 +168,24 @@ export async function recognize(input: RecognizeInput): Promise<ScanResult> {
   for (const url of images) content.push({ type: "image_url", image_url: { url } });
   content.push({ type: "text", text: userText({ ...input, images, text, note }) });
 
-  const call = input.fetchImpl ?? fetch;
-  let response: Response;
-  try {
-    response = await call("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${input.apiKey}`,
-        "Content-Type": "application/json",
-        "X-Title": "Cook & Eat",
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 8000,
-        reasoning: { effort: "low" },
-        usage: { include: true },
-        response_format: { type: "json_schema", json_schema: { name: "scan_result", strict: true, schema: SCHEMA } },
-        messages: [
-          { role: "system", content: buildScanPrompt(input.mode, input.products) },
-          { role: "user", content },
-        ],
-      }),
-      signal: AbortSignal.timeout(55_000),
-    });
-  } catch (error) {
-    const timedOut = error instanceof Error && error.name === "TimeoutError";
-    throw new RecognizeError(504, timedOut ? "Модель відповідає надто довго — спробуйте менше фото" : "Не вдалося зв'язатися з OpenRouter");
-  }
-
-  const payload = (await response.json().catch(() => null)) as OpenRouterPayload | null;
-  if (!response.ok || !payload || payload.error) {
-    const reason = payload?.error?.message ?? `HTTP ${response.status}`;
-    throw new RecognizeError(502, `OpenRouter (${model}): ${reason}`);
-  }
-  const raw = readModelText(payload);
-  const parsed = parseModelJson(raw, payload.choices?.[0]?.finish_reason);
-  const cost = payload.usage?.cost;
-  return normalizeScanResult(parsed, input.products, {
-    model,
-    costUsd: typeof cost === "number" ? cost : null,
-  });
+  const { parsed, costUsd } = await openRouterJsonChat(
+    {
+      apiKey: input.apiKey,
+      model,
+      schemaName: "scan_result",
+      schema: SCHEMA as unknown as Record<string, unknown>,
+      system: buildScanPrompt(input.mode, input.products),
+      user: content,
+      maxTokens: 8000,
+      fetchImpl: input.fetchImpl,
+      trimmedJsonMessage: "Відповідь обрізано — забагато позицій, спробуйте частинами",
+    },
+    (status, message) => {
+      if (status === 504 && message === "Модель відповідає надто довго") {
+        return new RecognizeError(status, "Модель відповідає надто довго — спробуйте менше фото");
+      }
+      return new RecognizeError(status, message);
+    },
+  );
+  return normalizeScanResult(parsed, input.products, { model, costUsd });
 }
