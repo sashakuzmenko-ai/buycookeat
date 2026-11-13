@@ -4,6 +4,7 @@
 import { todayISO, formatDate } from "./dates.ts";
 import { formatQty, ingredientUsage, type PlanLine, type ProductInfo } from "./shopping.ts";
 import type { StorageZone, MovementSource } from "./db-types.ts";
+import { BASE_COLORS, MODULE_THEMES } from "../components/ui/tokens.ts";
 
 export type { StorageZone, MovementSource };
 
@@ -230,8 +231,8 @@ export function formatMovements(movements: readonly MovementInput[]): MovementVi
       const scanItems = movements.filter((x) => x.scan_id === m.scan_id);
       const isInventory = m.source === "inventory";
       const sign: MovementView["sign"] = isInventory ? "=" : "+";
-      const bg = isInventory ? "#EEF1ED" : "#DDEFEE";
-      const fg = isInventory ? "#14201A" : "#124E51";
+      const bg = isInventory ? BASE_COLORS.soft : MODULE_THEMES.pantry.tint;
+      const fg = isInventory ? BASE_COLORS.ink : MODULE_THEMES.pantry.ink;
 
       const store = m.incoming_scans?.store_name;
       const inputType = m.incoming_scans?.input_type;
@@ -282,8 +283,8 @@ export function formatMovements(movements: readonly MovementInput[]): MovementVi
       result.push({
         id: m.id,
         sign: "−",
-        bg: "#FBE6E0",
-        fg: "#8C2A18",
+        bg: MODULE_THEMES.recipes.tint,
+        fg: MODULE_THEMES.recipes.ink,
         title,
         note,
         createdAt: m.created_at,
@@ -301,8 +302,8 @@ export function formatMovements(movements: readonly MovementInput[]): MovementVi
       result.push({
         id: m.id,
         sign: "=",
-        bg: "#EEF1ED",
-        fg: "#14201A",
+        bg: BASE_COLORS.soft,
+        fg: BASE_COLORS.ink,
         title: "Інвентаризація",
         note: timeStr ? `${timeStr} · ${pName}: ${qtyStr}` : `${pName}: ${qtyStr}`,
         createdAt: m.created_at,
@@ -311,8 +312,8 @@ export function formatMovements(movements: readonly MovementInput[]): MovementVi
       result.push({
         id: m.id,
         sign: "−",
-        bg: "#FBE6E0",
-        fg: "#8C2A18",
+        bg: MODULE_THEMES.recipes.tint,
+        fg: MODULE_THEMES.recipes.ink,
         title: pName,
         note: timeStr ? `${timeStr} · списано ${qtyStr}` : `списано ${qtyStr}`,
         createdAt: m.created_at,
@@ -321,8 +322,8 @@ export function formatMovements(movements: readonly MovementInput[]): MovementVi
       result.push({
         id: m.id,
         sign: "+",
-        bg: "#DDEFEE",
-        fg: "#124E51",
+        bg: MODULE_THEMES.pantry.tint,
+        fg: MODULE_THEMES.pantry.ink,
         title: pName,
         note: timeStr ? `${timeStr} · додано ${qtyStr}` : `додано ${qtyStr}`,
         createdAt: m.created_at,

@@ -50,7 +50,7 @@ export function ItemDialog({
     <dialog
       ref={dialogRef}
       onClose={onClose}
-      className="fixed inset-0 m-auto w-full max-w-md rounded-18 border border-line bg-surface p-6 shadow-xl backdrop:bg-ink/50 backdrop:backdrop-blur-xs"
+      className="fixed inset-0 m-auto w-full max-w-md rounded-18 border border-line bg-surface p-6 backdrop:bg-ink/50 backdrop:backdrop-blur-xs"
     >
       <div className="flex items-center justify-between pb-4 border-b border-line">
         <h2 className="font-display text-lg font-bold text-ink">

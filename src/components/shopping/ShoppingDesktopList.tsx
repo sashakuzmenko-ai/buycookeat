@@ -27,7 +27,7 @@ export function ShoppingDesktopList({ groups }: Readonly<ShoppingDesktopListProp
       {groups.map((group) => (
         <section
           key={group.storeId ?? "unassigned"}
-          className="rounded-[18px] bg-surface border border-line overflow-hidden shadow-xs"
+          className="rounded-[18px] bg-surface border border-line overflow-hidden"
         >
           <div className="p-[16px_18px] bg-ink text-white flex justify-between items-baseline">
             <h2 className="m-0 font-unbounded font-medium text-[16px] truncate pr-2">

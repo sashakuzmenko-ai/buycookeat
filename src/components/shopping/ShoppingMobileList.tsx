@@ -56,7 +56,7 @@ export function ShoppingMobileList({ groups }: Readonly<ShoppingMobileListProps>
               onClick={() => setSelectedStoreIndex(idx)}
               className={`flex-1 min-w-[140px] h-[48px] px-3 rounded-[14px] text-[14px] font-semibold whitespace-nowrap transition cursor-pointer ${
                 isActive
-                  ? "bg-ink text-white border-0 shadow-xs"
+                  ? "bg-ink text-white border border-ink"
                   : "bg-surface text-ink border border-line-strong hover:bg-soft"
               }`}
             >
@@ -72,7 +72,7 @@ export function ShoppingMobileList({ groups }: Readonly<ShoppingMobileListProps>
         {categoryGroups.map((catGroup) => (
           <section
             key={catGroup.name}
-            className="rounded-[18px] bg-surface border border-line p-[6px_14px] shadow-xs"
+            className="rounded-[18px] bg-surface border border-line p-[6px_14px]"
           >
             <div className="flex justify-between py-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-2">
               <span>{catGroup.name}</span>
