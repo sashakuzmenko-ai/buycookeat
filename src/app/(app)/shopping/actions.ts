@@ -2,9 +2,20 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { shoppingListMessage, sendToHouseholdChats } from "@/lib/channels/notify";
 import { getContext } from "@/lib/context";
 import { parseWeekParam, weekDays } from "@/lib/dates";
+import { buildShoppingTelegramGroups, weekRangeLabel } from "@/lib/shopping-present";
+import { NEED_FAMILY_LINK } from "@/lib/shopping-telegram";
 import { buildShoppingList, manualShoppingRow, type PlanLine, type ProductInfo } from "@/lib/shopping";
+
+function telegramSentLabel(count: number): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) return `Надіслала у ${count} чат`;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `Надіслала у ${count} чати`;
+  return `Надіслала у ${count} чатів`;
+}
 
 const str = (fd: FormData, key: string) => {
   const val = fd.get(key);
@@ -274,4 +285,57 @@ export async function stockBought(formData: FormData) {
   }
   revalidatePath("/shopping");
   revalidatePath("/pantry");
+}
+
+/** Надіслати згрупований список покупок у всі прив'язані Telegram-чати сім'ї. */
+export async function sendShoppingListToTelegram(_prevState: string | null, formData: FormData): Promise<string> {
+  try {
+    const { supabase, householdId } = await getContext();
+    const week = parseWeekParam(str(formData, "week"));
+    const days = weekDays(week);
+
+    const [itemsRes, storesRes] = await Promise.all([
+      supabase
+        .from("shopping_list_items")
+        .select("title, quantity, unit, store_id, checked, products(name)")
+        .eq("week_start", week)
+        .order("created_at"),
+      supabase.from("stores").select("id, name").order("sort_order"),
+    ]);
+    if (itemsRes.error) return itemsRes.error.message;
+    if (storesRes.error) return storesRes.error.message;
+
+    type Row = {
+      title: string | null;
+      quantity: number | null;
+      unit: string | null;
+      store_id: string | null;
+      checked: boolean;
+      products: { name: string } | { name: string }[] | null;
+    };
+    const stores = (storesRes.data ?? []).map((s) => ({ id: String(s.id), name: String(s.name) }));
+    const rows = (itemsRes.data ?? []).map((raw) => {
+      const item = raw as unknown as Row;
+      const product = Array.isArray(item.products) ? item.products[0] : item.products;
+      const productName = String(product?.name ?? item.title ?? "").trim();
+      return {
+        store_id: item.store_id ? String(item.store_id) : null,
+        checked: Boolean(item.checked),
+        productName,
+        quantity: item.quantity !== null ? Number(item.quantity) : null,
+        unit: item.unit ? String(item.unit) : null,
+      };
+    });
+
+    const groups = buildShoppingTelegramGroups(rows, stores);
+    const text = shoppingListMessage(groups, weekRangeLabel(days[0], days[6]));
+    const delivery = await sendToHouseholdChats(supabase, householdId, text);
+
+    if (!delivery.configured) return "Бот не налаштований";
+    if (delivery.chats === 0) return NEED_FAMILY_LINK;
+    if (delivery.sent === 0) return "Не вдалося надіслати в жоден чат";
+    return telegramSentLabel(delivery.sent);
+  } catch (err) {
+    return err instanceof Error ? err.message : "Не вдалося надіслати список";
+  }
 }
