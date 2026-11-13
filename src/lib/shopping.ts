@@ -1,5 +1,7 @@
 // Чиста логіка: порції, список покупок, автозаповнення меню. Без залежностей — тестується scripts/check-logic.ts
 
+import { pantryCoveragePercent } from "./menu.ts";
+
 export type Unit = "г" | "мл" | "шт";
 
 export function householdPortions(members: { portion_factor: number | string }[]): number {
@@ -74,32 +76,169 @@ export function ingredientUsage(line: PlanLine, portions: number): { productId: 
 
 export type Slot = { date: string; mealType: string };
 
+export type AutoFillContext = {
+  portions: number;
+  stock: Map<string, number>;
+  products: Map<string, ProductInfo>;
+  needs: Map<string, PlanLine[]>;
+  recipeEquipment: Map<string, string[]>;
+  equipment: Set<string>;
+};
+
+/**
+ * Визначає необхідну для рецепта техніку за згадками назв зі SEED_EQUIPMENT
+ * та очевидних синонімів у тексті опису та інструкцій.
+ * Порівняння без регістру та без регулярних виразів з уведенням користувача.
+ */
+export function requiredEquipment(text: string): string[] {
+  if (!text || typeof text !== "string") return [];
+  const lower = text.toLowerCase();
+  const words = lower.split(/[^a-zа-яіїєґ0-9]+/i);
+  const result: string[] = [];
+
+  const add = (name: string) => {
+    if (!result.includes(name)) result.push(name);
+  };
+
+  if (
+    lower.includes("духов") ||
+    lower.includes("запект") ||
+    lower.includes("запікат") ||
+    lower.includes("запече") ||
+    lower.includes("випікат") ||
+    lower.includes("випект")
+  ) {
+    add("Духовка");
+  }
+
+  if (lower.includes("блендер")) {
+    add("Блендер");
+  }
+
+  if (lower.includes("мікрохвильов") || words.includes("свч")) {
+    add("Мікрохвильовка");
+  }
+
+  if (
+    words.some((w) => w === "плита" || w === "плиті" || w === "плиту" || w === "плити" || w === "плитою" || w === "плитах") ||
+    lower.includes("на плиті") ||
+    lower.includes("на плиту") ||
+    lower.includes("варильн") ||
+    lower.includes("варочн")
+  ) {
+    add("Плита");
+  }
+
+  if (lower.includes("мультиварк")) {
+    add("Мультиварка");
+  }
+
+  if (lower.includes("фритюр")) {
+    add("Фритюрниця");
+  }
+
+  if (lower.includes("аерогриль") || lower.includes("аерогрилі")) {
+    add("Аерогриль");
+  } else if (
+    lower.includes("гриль") ||
+    lower.includes("грилі") ||
+    lower.includes("гриля") ||
+    lower.includes("грилю") ||
+    lower.includes("грилем")
+  ) {
+    add("Гриль");
+  }
+
+  return result;
+}
+
+function hasAvailableEquipment(
+  recipeId: string,
+  context: AutoFillContext | undefined,
+  normalizedEquipment: Set<string>,
+): boolean {
+  if (!context) return true;
+  const required = context.recipeEquipment.get(recipeId);
+  if (!required || required.length === 0) return true;
+  return required.every((eq) => normalizedEquipment.has(eq.toLowerCase().trim()));
+}
+
+function recipeCoverage(recipeId: string, context: AutoFillContext | undefined): number {
+  if (!context) return 0;
+  const lines = context.needs.get(recipeId);
+  if (!lines || lines.length === 0) return 0;
+  const hasIngredients = lines.some((l) => l.ingredients.length > 0);
+  if (!hasIngredients) return 0;
+  const percent = pantryCoveragePercent(lines, context.portions, context.products, context.stock);
+  return percent ?? 100;
+}
+
 /**
  * Заповнює порожні слоти рецептами відповідного типу.
- * Не повторює страву, поки не використані всі варіанти для цього прийому їжі.
+ * Правила вибору для слота:
+ * 1. Кандидати за meal_type
+ * 2. Відкинути ті, яким потрібна відсутня техніка (якщо після цього кандидатів немає — повертаються всі)
+ * 3. Перевага невикористаним на тижні, без повторів підряд
+ * 4. Впорядкування за покриттям складу (вище покриття — раніше)
+ * 5. Випадковість як tie-break між однаковими
  */
 export function autoFill(
   emptySlots: Slot[],
   recipes: { id: string; meal_types: string[] }[],
   alreadyUsed: string[],
+  contextOrRandom?: AutoFillContext | (() => number),
   random: () => number = Math.random,
 ): (Slot & { recipeId: string })[] {
+  const context =
+    typeof contextOrRandom === "object" && contextOrRandom !== null
+      ? contextOrRandom
+      : undefined;
+  const rand = typeof contextOrRandom === "function" ? contextOrRandom : random;
+
+  const normalizedEquipment = new Set(
+    Array.from(context?.equipment ?? []).map((e) => e.toLowerCase().trim()),
+  );
+
   const used = new Set(alreadyUsed);
   const result: (Slot & { recipeId: string })[] = [];
   let previous: string | null = null;
+
   for (const slot of emptySlots) {
     const candidates = recipes.filter((r) => r.meal_types.includes(slot.mealType));
     if (candidates.length === 0) continue;
-    let pool = candidates.filter((r) => !used.has(r.id));
+
+    const equipped = candidates.filter((r) =>
+      hasAvailableEquipment(r.id, context, normalizedEquipment),
+    );
+    const eligible = equipped.length > 0 ? equipped : candidates;
+
+    let pool = eligible.filter((r) => !used.has(r.id));
     if (pool.length === 0) {
-      pool = candidates.filter((r) => r.id !== previous);
-      if (pool.length === 0) pool = candidates;
+      pool = eligible.filter((r) => r.id !== previous);
+      if (pool.length === 0) pool = eligible;
     }
-    const pick = pool[Math.floor(random() * pool.length)];
+
+    const scored = pool.map((r) => ({
+      recipe: r,
+      coverage: recipeCoverage(r.id, context),
+    }));
+
+    let maxCoverage = -Infinity;
+    for (const item of scored) {
+      if (item.coverage > maxCoverage) {
+        maxCoverage = item.coverage;
+      }
+    }
+    const topCandidates = scored
+      .filter((item) => item.coverage === maxCoverage)
+      .map((item) => item.recipe);
+
+    const pick = topCandidates[Math.floor(rand() * topCandidates.length)];
     used.add(pick.id);
     previous = pick.id;
     result.push({ ...slot, recipeId: pick.id });
   }
+
   return result;
 }
 

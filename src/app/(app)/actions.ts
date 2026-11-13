@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getContext } from "@/lib/context";
 import { MEAL_TYPES, PRODUCT_CATEGORIES } from "@/lib/seed-data";
-import { autoFill, ingredientUsage } from "@/lib/shopping";
+import { autoFill, ingredientUsage, requiredEquipment, type PlanLine, type ProductInfo } from "@/lib/shopping";
 import { parseWeekParam, weekDays } from "@/lib/dates";
 import { recipeReturnPath } from "@/lib/recipes";
 import {
@@ -64,16 +64,31 @@ export async function removePlanEntry(formData: FormData) {
 }
 
 export async function autoFillWeek(formData: FormData) {
-  const { supabase, householdId } = await getContext();
+  const { supabase, householdId, portions } = await getContext();
   const week = parseWeekParam(str(formData, "week"));
   const path = weekPath("/menu", week);
   const days = weekDays(week);
 
-  const [entries, recipes] = await Promise.all([
-    supabase.from("meal_plan_entries").select("plan_date, meal_type, recipe_id").gte("plan_date", days[0]).lte("plan_date", days[6]),
-    supabase.from("recipes").select("id, meal_types"),
+  const [entries, recipes, recipeIngredientsRes, productsRes, pantryRes, equipmentRes] = await Promise.all([
+    supabase
+      .from("meal_plan_entries")
+      .select("plan_date, meal_type, recipe_id")
+      .gte("plan_date", days[0])
+      .lte("plan_date", days[6]),
+    supabase.from("recipes").select("id, meal_types, description, instructions"),
+    supabase.from("recipe_ingredients").select("recipe_id, product_id, quantity, optional"),
+    supabase.from("products").select("id, name, unit, category"),
+    supabase.from("pantry_items").select("product_id, quantity"),
+    supabase.from("equipment").select("name"),
   ]);
-  if (entries.error || recipes.error) fail(path, (entries.error ?? recipes.error)!.message);
+  const loadError =
+    entries.error ??
+    recipes.error ??
+    recipeIngredientsRes.error ??
+    productsRes.error ??
+    pantryRes.error ??
+    equipmentRes.error;
+  if (loadError) fail(path, loadError.message);
   if (!recipes.data!.length) fail(path, "Спочатку додайте рецепти");
 
   const taken = new Set(entries.data!.map((e) => `${e.plan_date}|${e.meal_type}`));
@@ -83,7 +98,75 @@ export async function autoFillWeek(formData: FormData) {
       .map((mealType) => ({ date, mealType })),
   );
   const used = entries.data!.map((e) => e.recipe_id).filter(Boolean) as string[];
-  const picks = autoFill(empty, recipes.data!, used);
+
+  const stock = new Map<string, number>(
+    (pantryRes.data ?? []).map((item: { product_id: string; quantity: number | string }) => [
+      item.product_id,
+      Number(item.quantity) || 0,
+    ]),
+  );
+
+  const products = new Map<string, ProductInfo>(
+    (productsRes.data ?? []).map((p: { id: string; unit: string; category?: string }) => [
+      p.id,
+      { unit: p.unit, isStaple: false, storeId: null },
+    ]),
+  );
+
+  const ingredientsByRecipe = new Map<string, { productId: string; quantity: number; optional: boolean }[]>();
+  for (const item of (recipeIngredientsRes.data ?? []) as Array<{
+    recipe_id: string;
+    product_id: string;
+    quantity: number | string;
+    optional: boolean | null;
+  }>) {
+    const list = ingredientsByRecipe.get(item.recipe_id);
+    const ingredient = {
+      productId: item.product_id,
+      quantity: Number(item.quantity) || 0,
+      optional: Boolean(item.optional),
+    };
+    if (list) {
+      list.push(ingredient);
+    } else {
+      ingredientsByRecipe.set(item.recipe_id, [ingredient]);
+    }
+  }
+
+  const recipeRows = (recipes.data ?? []) as Array<{
+    id: string;
+    meal_types: string[];
+    description: string | null;
+    instructions: string | null;
+  }>;
+
+  const needs = new Map<string, PlanLine[]>();
+  const recipeEquipment = new Map<string, string[]>();
+  for (const r of recipeRows) {
+    needs.set(r.id, [
+      {
+        servings: null,
+        baseServings: 4,
+        ingredients: ingredientsByRecipe.get(r.id) ?? [],
+      },
+    ]);
+    const text = `${r.description ?? ""} ${r.instructions ?? ""}`.trim();
+    recipeEquipment.set(r.id, requiredEquipment(text));
+  }
+
+  const equipment = new Set<string>(
+    (equipmentRes.data ?? []).map((e: { name: string }) => e.name),
+  );
+
+  const picks = autoFill(empty, recipeRows, used, {
+    portions,
+    stock,
+    products,
+    needs,
+    recipeEquipment,
+    equipment,
+  });
+
   if (picks.length) {
     const { error } = await supabase.from("meal_plan_entries").insert(
       picks.map((p) => ({ household_id: householdId, plan_date: p.date, meal_type: p.mealType, recipe_id: p.recipeId })),
