@@ -4,8 +4,16 @@ import { useState } from "react";
 import { createTelegramLink, unlinkTelegram } from "@/app/(app)/settings/actions";
 import { Button } from "@/components/ui";
 
+export type TelegramBindingView = {
+  id: string;
+  title: string;
+  chatTypeLabel: string;
+  linkedAtLabel: string;
+};
+
 export type TelegramLinkState = {
-  linked: boolean;
+  linkedCount: number;
+  bindings: TelegramBindingView[];
   code: string | null;
   expiresLabel: string | null;
   botUrl: string | null;
@@ -33,28 +41,38 @@ function CopyCode({ code }: { code: string }) {
   );
 }
 
-export function TelegramLink({ linked, code, expiresLabel, botUrl }: TelegramLinkState) {
-  if (linked) {
-    return (
-      <div className="mt-2 flex flex-col gap-2 rounded-12 bg-soft p-3 text-[13px] leading-relaxed text-ink-2">
-        <p>
-          <span className="font-semibold text-ink">Telegram-бот:</span> чат підключено до цього акаунта.
-        </p>
-        <form action={unlinkTelegram}>
-          <Button type="submit" variant="secondary" className="w-full text-[14px]">
-            Відв&apos;язати
-          </Button>
-        </form>
-      </div>
-    );
-  }
-
+export function TelegramLink({ linkedCount, bindings, code, expiresLabel, botUrl }: TelegramLinkState) {
   return (
     <div className="mt-2 flex flex-col gap-2 rounded-12 bg-soft p-3 text-[13px] leading-relaxed text-ink-2">
       <p>
-        <span className="font-semibold text-ink">Telegram-бот:</span> згенеруйте код і надішліть його боту. Код
-        одноразовий і діє 20 хвилин.
+        <span className="font-semibold text-ink">Telegram-бот:</span>{" "}
+        {linkedCount > 0
+          ? `підключено ${linkedCount} ${linkedCount === 1 ? "чат" : linkedCount < 5 ? "чати" : "чатів"}. Можна додати ще.`
+          : "згенеруйте код і надішліть його боту."}{" "}
+        Код одноразовий і діє 20 хвилин.
       </p>
+
+      {bindings.length > 0 ? (
+        <ul className="flex flex-col gap-2 divide-y divide-line/60">
+          {bindings.map((row) => (
+            <li key={row.id} className="flex flex-col gap-2 pt-2 first:pt-0">
+              <div>
+                <div className="font-semibold text-ink">{row.title}</div>
+                <div className="text-[12px] text-ink-2">
+                  {row.chatTypeLabel} · підключено {row.linkedAtLabel}
+                </div>
+              </div>
+              <form action={unlinkTelegram}>
+                <input type="hidden" name="id" value={row.id} />
+                <Button type="submit" variant="secondary" className="w-full text-[14px]">
+                  Відв&apos;язати
+                </Button>
+              </form>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
       {code ? (
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between gap-2">
@@ -70,13 +88,13 @@ export function TelegramLink({ linked, code, expiresLabel, botUrl }: TelegramLin
             <p>Надішліть боту команду /start {code}. Посилання з&apos;явиться, коли буде задано токен бота.</p>
           )}
         </div>
-      ) : (
-        <form action={createTelegramLink}>
-          <Button type="submit" variant="secondary" className="w-full text-[14px]">
-            Згенерувати код
-          </Button>
-        </form>
-      )}
+      ) : null}
+
+      <form action={createTelegramLink}>
+        <Button type="submit" variant="secondary" className="w-full text-[14px]">
+          Згенерувати код
+        </Button>
+      </form>
     </div>
   );
 }
