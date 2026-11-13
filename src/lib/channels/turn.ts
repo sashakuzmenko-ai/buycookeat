@@ -25,6 +25,7 @@ import {
   quickAsk,
 } from "./copy.ts";
 import { redeemFailureText } from "./bind.ts";
+import { shouldAnswerText } from "./group.ts";
 import { addScanToShopping, loadGrant, loadOwnedItems, loadProducts, readDinner, readLowStock, readShopping, redeemLink } from "./store.ts";
 
 type Turn = {
@@ -256,5 +257,21 @@ export async function handleTelegramUpdate(ctx: Turn): Promise<void> {
     await onBrief(ctx, event.message.chatId, ask);
     return;
   }
-  await onScan(ctx, event.message);
+  const msg = event.message;
+  if (
+    !shouldAnswerText({
+      chatType: msg.chatType,
+      text: msg.text,
+      mentionsBot: msg.mentionsBot,
+      repliesToBot: msg.repliesToBot,
+    })
+  ) {
+    return;
+  }
+  const isGroup = msg.chatType === "group" || msg.chatType === "supergroup";
+  if (isGroup && msg.mentionsBot && msg.text.replace(/@[\w_]+/g, "").trim() === "") {
+    await reply(ctx, msg.chatId, USAGE, { hints: true });
+    return;
+  }
+  await onScan(ctx, msg);
 }

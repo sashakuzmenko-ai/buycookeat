@@ -107,6 +107,10 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           code,
           expiresLabel: code ? kyivDate.format(new Date(expiresMs)) : null,
           botUrl: username && code ? `https://t.me/${encodeURIComponent(username)}?start=${encodeURIComponent(code)}` : null,
+          botGroupUrl:
+            username && code
+              ? `https://t.me/${encodeURIComponent(username)}?startgroup=${encodeURIComponent(code)}`
+              : null,
         }}
         linkedUserIds={linkedUserIds}
         stores={stores}

@@ -128,6 +128,47 @@ function telegramChatTitle(chat: Json, from: Json): string | null {
   return title || null;
 }
 
+function botNeedle(botUsername: string | null | undefined): string | null {
+  if (!botUsername?.trim()) return null;
+  return botUsername.replace(/^@/, "").toLowerCase();
+}
+
+function mentionsBotInMessage(message: Json, botUsername: string | null | undefined): boolean {
+  const needle = botNeedle(botUsername);
+  if (!needle) return false;
+  const text = textOf(message.text) || textOf(message.caption);
+  const entities = [
+    ...(Array.isArray(message.entities) ? message.entities : []),
+    ...(Array.isArray(message.caption_entities) ? message.caption_entities : []),
+  ];
+  for (const raw of entities) {
+    const entity = record(raw);
+    if (!entity) continue;
+    const type = textOf(entity.type);
+    if (type === "mention") {
+      const offset = Number(entity.offset);
+      const length = Number(entity.length);
+      if (Number.isFinite(offset) && Number.isFinite(length) && length > 0) {
+        const mention = text.slice(offset, offset + length).replace(/^@/, "").toLowerCase();
+        if (mention === needle) return true;
+      }
+    }
+    if (type === "text_mention") {
+      const user = record(entity.user);
+      const username = textOf(user?.username).replace(/^@/, "").toLowerCase();
+      if (username === needle) return true;
+    }
+  }
+  return false;
+}
+
+function repliesToBotMessage(message: Json): boolean {
+  const reply = record(message.reply_to_message);
+  if (!reply) return false;
+  const from = record(reply.from);
+  return from?.is_bot === true;
+}
+
 function inboundBase(message: Json, from: Json, chat: Json) {
   const senderId = textOf(from.id);
   const chatId = textOf(chat.id);
@@ -140,7 +181,7 @@ function inboundBase(message: Json, from: Json, chat: Json) {
   };
 }
 
-function readMessage(message: Json): ChannelUpdate {
+function readMessage(message: Json, botUsername?: string | null): ChannelUpdate {
   const from = record(message.from);
   const chat = record(message.chat);
   if (!from || !chat || from.is_bot) return { kind: "ignore" };
@@ -149,6 +190,8 @@ function readMessage(message: Json): ChannelUpdate {
   const text = textOf(message.text) || textOf(message.caption);
   const startCode = startArgument(text);
   const media = mediaOf(message);
+  const mentionsBot = mentionsBotInMessage(message, botUsername);
+  const repliesToBot = repliesToBotMessage(message);
   if (media === "large") {
     return {
       kind: "message",
@@ -159,6 +202,8 @@ function readMessage(message: Json): ChannelUpdate {
         media: null,
         startCode: null,
         oversized: true,
+        mentionsBot,
+        repliesToBot,
       },
     };
   }
@@ -172,6 +217,8 @@ function readMessage(message: Json): ChannelUpdate {
       media: media?.media ?? null,
       startCode,
       oversized: false,
+      mentionsBot,
+      repliesToBot,
     },
   };
 }
@@ -188,11 +235,11 @@ function readPress(query: Json): ChannelUpdate {
   return { kind: "press", press: { pressId, senderId, chatId, data } };
 }
 
-export function readTelegramUpdate(update: unknown): ChannelUpdate {
+export function readTelegramUpdate(update: unknown, botUsername?: string | null): ChannelUpdate {
   const body = record(update);
   if (!body) return { kind: "ignore" };
   const message = record(body.message);
-  if (message) return readMessage(message);
+  if (message) return readMessage(message, botUsername);
   const query = record(body.callback_query);
   if (query) return readPress(query);
   return { kind: "ignore" };
@@ -264,9 +311,9 @@ async function readLimited(response: Response, max: number): Promise<Uint8Array 
   return out;
 }
 
-export function createTelegramChannel(token: string, fetchImpl: typeof fetch = fetch): ScanChannel {
+export function createTelegramChannel(token: string, fetchImpl: typeof fetch = fetch, botUsername?: string | null): ScanChannel {
   return {
-    readUpdate: readTelegramUpdate,
+    readUpdate: (update) => readTelegramUpdate(update, botUsername),
     async send(message) {
       const replyMarkup = keyboard(message);
       const sent = await callApi(

@@ -105,6 +105,7 @@ import { parseScanRequest } from "../src/lib/scan/request.ts";
 import { decideChannelAccess, missingBotEnv, rowsForGrant, scopedHousehold, supabaseServerKey, webhookSecretOk } from "../src/lib/channels/access.ts";
 import { decideRedeem, linkCodeFromBytes, normalizeLinkCode, pendingExternalId, redeemFailureText } from "../src/lib/channels/bind.ts";
 import { dinnerText, parsePressData, quickAsk, recognitionText, scanButtons, shoppingText, stockText, wroteSummary } from "../src/lib/channels/copy.ts";
+import { shouldAnswerText } from "../src/lib/channels/group.ts";
 import { audioFormatFor, readTelegramUpdate, startArgument } from "../src/lib/channels/telegram.ts";
 
 // навігація: вісім розділів у бічній панелі та їх порядок
@@ -1077,6 +1078,52 @@ if (pressUpdate.kind === "press") {
   assert.equal(parsePressData(pressUpdate.press.data)?.action, "ok");
 }
 assert.equal(readTelegramUpdate({ update_id: 2 }).kind, "ignore");
+
+const groupText = { chatType: "supergroup", text: "купив сир", mentionsBot: false, repliesToBot: false };
+assert.equal(shouldAnswerText(groupText), false);
+assert.equal(shouldAnswerText({ ...groupText, chatType: "private" }), true);
+assert.equal(shouldAnswerText({ ...groupText, text: "Список покупок" }), true);
+assert.equal(shouldAnswerText({ ...groupText, text: "@CookEatBot купив сир", mentionsBot: true }), true);
+assert.equal(shouldAnswerText({ ...groupText, text: "купив сир", repliesToBot: true }), true);
+
+const mentionText = "@CookEatBot купив сир";
+const mentionOffset = 0;
+const mentionLen = "@CookEatBot".length;
+const mentionUpdate = readTelegramUpdate(
+  {
+    update_id: 4,
+    message: {
+      message_id: 2,
+      from: { id: 42, is_bot: false, first_name: "Оля" },
+      chat: { id: -100, type: "supergroup", title: "Родина" },
+      text: mentionText,
+      entities: [{ type: "mention", offset: mentionOffset, length: mentionLen }],
+    },
+  },
+  "CookEatBot",
+);
+assert.equal(mentionUpdate.kind, "message");
+if (mentionUpdate.kind === "message") {
+  assert.equal(mentionUpdate.message.mentionsBot, true);
+  assert.equal(shouldAnswerText({
+    chatType: mentionUpdate.message.chatType,
+    text: mentionUpdate.message.text,
+    mentionsBot: mentionUpdate.message.mentionsBot,
+    repliesToBot: mentionUpdate.message.repliesToBot,
+  }), true);
+}
+const replyUpdate = readTelegramUpdate({
+  update_id: 5,
+  message: {
+    message_id: 3,
+    from: { id: 42, is_bot: false, first_name: "Оля" },
+    chat: { id: -100, type: "group", title: "Родина" },
+    text: "дякую",
+    reply_to_message: { message_id: 1, from: { id: 999, is_bot: true, username: "CookEatBot" } },
+  },
+});
+assert.equal(replyUpdate.kind, "message");
+if (replyUpdate.kind === "message") assert.equal(replyUpdate.message.repliesToBot, true);
 
 const buttons = scanButtons(scanId, "https://cook.example/scan?id=" + scanId);
 assert.deepEqual(buttons.flat().map((button) => button.label), ["Записати", "Виправити", "У покупки", "Уже купили"]);
