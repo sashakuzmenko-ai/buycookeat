@@ -27,13 +27,16 @@ export const requireUser = cache(async () => {
 /** Користувач + його домогосподарство + порції сім'ї. */
 export const getContext = cache(async () => {
   const { supabase, user } = await requireUser();
-  const { data: link } = await supabase
+  const { data: link, error: linkError } = await supabase
     .from("household_users")
     .select("household_id, households(id, name, city, monthly_budget)")
     .eq("user_id", user.id)
     .order("created_at")
     .limit(1)
     .maybeSingle();
+  // Помилка запиту — не те саме, що «сім'ї ще немає»: інакше / і /onboarding
+  // перекидають одне на одного без кінця (наприклад, коли в базі бракує міграції).
+  if (linkError) throw new Error(`Не вдалося прочитати сім'ю: ${linkError.message}`);
   if (!link) redirect("/onboarding");
 
   const { data: members } = await supabase
