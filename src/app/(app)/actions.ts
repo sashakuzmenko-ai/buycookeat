@@ -281,6 +281,7 @@ export async function setCooked(formData: FormData) {
       }
     }
   }
+  revalidatePath("/");
   revalidatePath("/menu");
   revalidatePath("/pantry");
   revalidatePath("/recipes");

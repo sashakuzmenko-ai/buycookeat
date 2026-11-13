@@ -112,10 +112,10 @@ export function mealTypeForNewEntry(mealTypes: readonly string[]): MealType {
   return "lunch";
 }
 
-/** Лише /recipes і /recipes/<uuid>, щоб return_to не став відкритим редіректом. */
+/** Лише /, /recipes і /recipes/<uuid>, щоб return_to не став відкритим редіректом. */
 export function recipeReturnPath(value: string, fallback: string): string {
   const path = value.trim();
-  if (path === "/recipes") return path;
+  if (path === "/" || path === "/recipes") return path;
   if (/^\/recipes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(path)) return path;
   return fallback;
 }

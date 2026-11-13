@@ -27,20 +27,25 @@ import {
   pluralizePositions as pluralizePricePositions,
 } from "../src/lib/prices.ts";
 import { addDays, weekDays, weekStart } from "../src/lib/dates.ts";
+import { buildHomeModel } from "../src/lib/home.ts";
 import {
   FORECAST_MIN_ELAPSED_DAYS,
   amountOf,
   averageReceipt,
   budgetRemaining,
   categoryTotals,
+  chartWeekLabel,
   daysInMonth,
   daysInYear,
   forecastState,
   formatShare,
   formatUah,
   monthForecast,
+  monthLocativeUk,
   monthTitle,
   pace,
+  paceDifference,
+  paceDifferenceNote,
   parseMoney,
   parsePeriod,
   periodTitle,
@@ -953,4 +958,223 @@ assert.equal(resolveCaptureType("file", { images: 0, audio: false, fromVideo: fa
 assert.equal(captureBlockReason("text", { images: 0, audio: false, fromVideo: false, text: "", note: "" }), "Напишіть, що купили");
 assert.equal(captureBlockReason("voice", { images: 0, audio: true, fromVideo: false, text: "", note: "" }), null);
 
+// Огляд: темп, місяці, тижні та безпечний шлях
+assert.equal(monthLocativeUk("2026-11-12"), "листопаді");
+assert.equal(monthLocativeUk("2026-05-01"), "травні");
+assert.equal(paceDifference(7460, 18000, 12, 30), 260);
+assert.equal(paceDifference(7000, 18000, 12, 30), -200);
+assert.equal(paceDifference(7200, 18000, 12, 30), 0);
+assert.equal(paceDifferenceNote(260), `на ${formatUah(260)} вище темпу`);
+assert.equal(paceDifferenceNote(-200), `на ${formatUah(200)} нижче темпу`);
+assert.equal(paceDifferenceNote(0), "за темпом");
+assert.equal(chartWeekLabel("2026-10-12", "2026-11-12"), "12–18 жов");
+assert.equal(chartWeekLabel("2026-10-26", "2026-11-12"), "26 жов – 1 лис");
+assert.equal(chartWeekLabel("2026-11-09", "2026-11-12"), "9–12 лис · триває");
+assert.equal(recipeReturnPath("/", "/recipes"), "/");
+
+// Тест buildHomeModel для нової сім'ї без даних
+const emptyHome = buildHomeModel({
+  today: "2026-11-12",
+  familyCount: 0,
+  portions: 1,
+  finance: { budget: null, receipts: [], householdCount: 0 },
+  menu: { entries: [], products: new Map(), names: new Map(), stock: new Map() },
+  pantry: { items: [], historicalMaxMap: new Map() },
+  shopping: { items: [], stores: [], storeProducts: [], receipts: [], receiptItems: [] },
+  scans: { inboxScans: [], now: new Date("2026-11-12T12:00:00Z") },
+});
+
+assert.equal(emptyHome.dateLabel, "Четвер, 12 листопада");
+assert.equal(emptyHome.finance.hasBudget, false);
+assert.equal(emptyHome.finance.monthSpent, 0);
+assert.equal(emptyHome.menu.hasMenu, false);
+assert.equal(emptyHome.menu.todayMeals.length, 0);
+assert.equal(emptyHome.menu.nextMeal, null);
+assert.equal(emptyHome.pantry.totalCount, 0);
+assert.equal(emptyHome.pantry.alerts.length, 0);
+assert.equal(emptyHome.shopping.toBuyCount, 0);
+assert.equal(emptyHome.weeks.length, 5);
+assert.equal(emptyHome.recentScans.length, 0);
+assert.equal(emptyHome.pendingScan, null);
+
+// Тест buildHomeModel із заповненими даними
+const filledHome = buildHomeModel({
+  today: "2026-11-12",
+  familyCount: 4,
+  portions: 3.5,
+  finance: {
+    budget: 18000,
+    receipts: [
+      {
+        id: "r1",
+        purchasedAt: "2026-11-12",
+        storeName: "Сільпо",
+        total: 1284.5,
+        inputSource: "receipt",
+        scanInputType: null,
+        items: [],
+      },
+      {
+        id: "r2",
+        purchasedAt: "2026-11-05",
+        storeName: "АТБ",
+        total: 6175.5,
+        inputSource: "manual",
+        scanInputType: null,
+        items: [],
+      },
+    ],
+    householdCount: 2,
+  },
+  menu: {
+    entries: [
+      {
+        id: "m1",
+        plan_date: "2026-11-12",
+        meal_type: "breakfast",
+        title: "Сирники",
+        cooked_at: "2026-11-12T08:00:00Z",
+        servings: null,
+        recipes: {
+          id: "rec1",
+          title: "Сирники зі сметаною",
+          cook_minutes: 25,
+          base_servings: 2,
+          recipe_ingredients: [{ product_id: "prod-cheese", quantity: 400, optional: false }],
+        },
+      },
+      {
+        id: "m2",
+        plan_date: "2026-11-12",
+        meal_type: "lunch",
+        title: "Борщ",
+        cooked_at: null,
+        servings: null,
+        recipes: {
+          id: "rec2",
+          title: "Борщ із пампушками",
+          cook_minutes: 60,
+          base_servings: 4,
+          recipe_ingredients: [{ product_id: "prod-meat", quantity: 600, optional: false }],
+        },
+      },
+      {
+        id: "m3",
+        plan_date: "2026-11-12",
+        meal_type: "dinner",
+        title: "Курка",
+        cooked_at: null,
+        servings: null,
+        recipes: null,
+      },
+    ],
+    products: new Map([
+      ["prod-cheese", { unit: "г", isStaple: false, storeId: "store-silpo" }],
+      ["prod-meat", { unit: "г", isStaple: false, storeId: "store-silpo" }],
+    ]),
+    names: new Map([
+      ["prod-cheese", "Сир"],
+      ["prod-meat", "Куряче філе"],
+    ]),
+    stock: new Map([
+      ["prod-cheese", 500],
+      ["prod-meat", 1000],
+    ]),
+  },
+  pantry: {
+    items: [
+      {
+        id: "p1",
+        product_id: "prod-meat",
+        quantity: 600,
+        storage_zone: "fridge",
+        expires_at: "2026-11-13",
+        products: { id: "prod-meat", name: "Куряче філе", category: "м'ясо", unit: "г" },
+      },
+      {
+        id: "p2",
+        product_id: "prod-milk",
+        quantity: 100,
+        storage_zone: "fridge",
+        expires_at: null,
+        products: { id: "prod-milk", name: "Молоко", category: "молочне", unit: "мл" },
+      },
+    ],
+    historicalMaxMap: new Map([
+      ["prod-meat", 1000],
+      ["prod-milk", 1000],
+    ]),
+  },
+  shopping: {
+    items: [
+      {
+        id: "s1",
+        title: "Молоко",
+        quantity: 1000,
+        unit: "мл",
+        store_id: "store-silpo",
+        checked: false,
+        stocked_at: null,
+        product_id: "prod-milk",
+        products: { id: "prod-milk", name: "Молоко", category: "молочне", unit: "мл", preferred_store_id: "store-silpo" },
+      },
+    ],
+    stores: [
+      { id: "store-silpo", name: "Сільпо", access: "walk", kind: "supermarket", sort_order: 1 },
+    ],
+    storeProducts: [
+      { store_id: "store-silpo", product_id: "prod-milk", price: 42, price_updated_at: "2026-11-10" },
+    ],
+    receipts: [],
+    receiptItems: [],
+  },
+  scans: {
+    inboxScans: [
+      {
+        id: "scan1",
+        channel: "telegram",
+        inputType: "receipt",
+        status: "pending",
+        mode: "add",
+        storeName: "Сільпо",
+        total: 1284.5,
+        items: [
+          { raw: "хліб", productId: null, name: "Хліб", category: "хліб", unit: "шт", quantity: 1, uncertain: false, price: 25 },
+          { raw: "сир", productId: null, name: "Сир", category: "молочне", unit: "г", quantity: 300, uncertain: true, price: 90 },
+        ],
+        createdAt: "2026-11-12T08:42:00Z",
+      },
+    ],
+    now: new Date("2026-11-12T12:00:00Z"),
+  },
+});
+
+assert.equal(filledHome.finance.hasBudget, true);
+assert.equal(filledHome.finance.monthSpent, 7460);
+assert.equal(filledHome.finance.todaySpent, 1284.5);
+assert.equal(filledHome.finance.paceNote, `на ${formatUah(260)} вище темпу`);
+assert.equal(filledHome.menu.hasMenu, true);
+assert.equal(filledHome.menu.todayMeals.length, 3);
+// Сирники приготовані
+assert.equal(filledHome.menu.todayMeals[0].isNextUncooked, false);
+assert.equal(filledHome.menu.todayMeals[0].status.kind, "cooked");
+// Борщ — наступна неприготована страва
+assert.equal(filledHome.menu.todayMeals[1].isNextUncooked, true);
+assert.equal(filledHome.menu.todayMeals[1].status.kind, "ready");
+// Курка — не наступна (борщ перед нею)
+assert.equal(filledHome.menu.todayMeals[2].isNextUncooked, false);
+assert.equal(filledHome.menu.nextMeal?.title, "Борщ із пампушками");
+assert.equal(filledHome.menu.subsequentMeal?.title, "Курка");
+// Склад: куряче філе спливає завтра (у меню на сьогодні), молоко — мало
+assert.equal(filledHome.pantry.totalCount, 2);
+assert.equal(filledHome.pantry.alerts.length, 2);
+assert.equal(filledHome.pantry.alerts[0].name, "Куряче філе");
+assert.match(filledHome.pantry.alerts[0].note, /Спливає завтра — у меню на сьогодні/);
+assert.equal(filledHome.pantry.alerts[1].name, "Молоко");
+assert.equal(filledHome.pantry.alerts[1].note, "Мало · уже в списку покупок");
+// Скани: черга містить pending скан
+assert.equal(filledHome.pendingScan?.title, "Чек із Сільпо чекає перевірки");
+assert.equal(filledHome.pendingScan?.uncertainCount, 1);
+
 console.log("ok: скан — розпізнавання, черга, наслідки");
+console.log("ok: огляд — темп, тижні, дати, модель");
