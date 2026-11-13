@@ -9,6 +9,7 @@ import { MemberDialog } from "./MemberDialog";
 import { BudgetCard } from "./BudgetCard";
 import { EquipmentCard } from "./EquipmentCard";
 import { AccessCard, type HouseholdUserInfo } from "./AccessCard";
+import type { TelegramLinkState } from "./TelegramLink";
 import { StoresSection, type StoreItem } from "./StoresSection";
 
 export interface FamilyScreenProps {
@@ -17,6 +18,8 @@ export interface FamilyScreenProps {
   monthlyBudget: number | null;
   equipment: { id: string; name: string }[];
   users: HouseholdUserInfo[];
+  telegram: TelegramLinkState;
+  linkedUserIds: readonly string[];
   stores: StoreItem[];
   notice?: ReactNode;
 }
@@ -27,6 +30,8 @@ export function FamilyScreen({
   monthlyBudget,
   equipment,
   users,
+  telegram,
+  linkedUserIds,
   stores,
   notice,
 }: FamilyScreenProps) {
@@ -49,8 +54,6 @@ export function FamilyScreen({
     const sample = stores.slice(0, 3).map((s) => s.name).join(", ");
     return stores.length > 3 ? `${sample}...` : sample;
   }, [stores]);
-
-  const usersSummary = `${users.length} ${users.length === 1 ? "учасник" : users.length < 5 ? "учасники" : "учасників"}`;
 
   const handleOpenAdd = () => {
     setEditingMember(null);
@@ -213,7 +216,7 @@ export function FamilyScreen({
           className="flex min-h-[52px] items-center gap-2.5 text-[15px] text-ink no-underline"
         >
           <span className="flex-grow font-semibold">Telegram-бот</span>
-          <span className="text-[14px] text-ink-2">{usersSummary}</span>
+          <span className="text-[14px] text-ink-2">{telegram.linked ? "підключено" : "не підключено"}</span>
           <span aria-hidden="true" className="text-ink-2">›</span>
         </a>
       </section>
@@ -222,7 +225,7 @@ export function FamilyScreen({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3 items-start">
         <BudgetCard initialMonthlyBudget={monthlyBudget} />
         <EquipmentCard equipment={equipment} />
-        <AccessCard users={users} />
+        <AccessCard users={users} telegram={telegram} linkedUserIds={linkedUserIds} />
       </div>
 
       {/* Блок магазинів (залишається робочим на сторінці) */}

@@ -102,3 +102,24 @@ export function autoFill(
   }
   return result;
 }
+
+/** Рядок ручного пункту списку покупок. Той самий запис, що й форма в застосунку. */
+export function manualShoppingRow(input: {
+  householdId: string;
+  weekStart: string;
+  title: string;
+  productId?: string | null;
+  quantity?: number | null;
+  unit?: string | null;
+}) {
+  return {
+    household_id: input.householdId,
+    week_start: input.weekStart,
+    title: input.title,
+    product_id: input.productId ?? null,
+    quantity: input.quantity ?? null,
+    unit: input.unit ?? null,
+    source: "manual" as const,
+    checked: false,
+  };
+}

@@ -123,19 +123,16 @@ export async function updateIncomingScan(
   supabase: SupabaseClient,
   scanId: string,
   patch: ScanPatch,
+  householdId?: string,
 ): Promise<{ ok: true } | InboxFail> {
   const row: Record<string, unknown> = {};
   if (patch.items) row.items = patch.items;
   if (patch.mode) row.mode = patch.mode;
   if (patch.storeName !== undefined) row.store_name = patch.storeName;
   if (patch.total !== undefined) row.total = patch.total;
-  const { data, error } = await supabase
-    .from("incoming_scans")
-    .update(row)
-    .eq("id", scanId)
-    .eq("status", "pending")
-    .select("id")
-    .maybeSingle();
+  let query = supabase.from("incoming_scans").update(row).eq("id", scanId).eq("status", "pending");
+  if (householdId) query = query.eq("household_id", householdId);
+  const { data, error } = await query.select("id").maybeSingle();
   const failed = fail(error, "Не вдалося оновити скан");
   if (failed) return failed;
   if (!data) return { ok: false, error: "Скан уже оброблено або його немає" };

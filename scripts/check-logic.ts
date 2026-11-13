@@ -1,6 +1,6 @@
 // node scripts/check-logic.ts — перевірка розрахунку порцій, списку покупок і автозаповнення
 import assert from "node:assert/strict";
-import { autoFill, buildShoppingList, formatQty, householdPortions, ingredientUsage, roundCooking, roundQty } from "../src/lib/shopping.ts";
+import { autoFill, buildShoppingList, formatQty, householdPortions, ingredientUsage, manualShoppingRow, roundCooking, roundQty } from "../src/lib/shopping.ts";
 import { dayMarkFromSlots, dishStockStatus, pantryCoveragePercent, positionCountLabel, summarizeMenu } from "../src/lib/menu.ts";
 import {
   availabilityLabel,
@@ -79,7 +79,7 @@ import {
   parseRestrictions,
 } from "../src/lib/family.ts";
 import { MAIN_NAV_ITEMS, MORE_NAV_ITEMS, isRouteActive, isMoreActive } from "../src/components/shell/nav-items.ts";
-import { captureBlockReason, resolveCaptureType } from "../src/lib/scan/capture.ts";
+import { captureBlockReason, defaultScanMode, resolveCaptureType } from "../src/lib/scan/capture.ts";
 import { chooseProduct } from "../src/lib/scan/products.ts";
 import {
   SCAN_INPUTS,
@@ -97,6 +97,10 @@ import {
 } from "../src/lib/scan/present.ts";
 import { buildScanPrompt, normalizeScanResult } from "../src/lib/scan/recognize.ts";
 import { parseScanRequest } from "../src/lib/scan/request.ts";
+import { decideChannelAccess, missingBotEnv, rowsForGrant, scopedHousehold, supabaseServerKey, webhookSecretOk } from "../src/lib/channels/access.ts";
+import { decideRedeem, linkCodeFromBytes, normalizeLinkCode, pendingExternalId, redeemFailureText } from "../src/lib/channels/bind.ts";
+import { dinnerText, parsePressData, quickAsk, recognitionText, scanButtons, shoppingText, stockText, wroteSummary } from "../src/lib/channels/copy.ts";
+import { audioFormatFor, readTelegramUpdate, startArgument } from "../src/lib/channels/telegram.ts";
 
 // навігація: вісім розділів у бічній панелі та їх порядок
 assert.deepEqual(
@@ -952,5 +956,133 @@ assert.equal(resolveCaptureType("file", { images: 2, audio: true, fromVideo: tru
 assert.equal(resolveCaptureType("file", { images: 0, audio: false, fromVideo: false, text: "купив сир", note: "" }), "text");
 assert.equal(captureBlockReason("text", { images: 0, audio: false, fromVideo: false, text: "", note: "" }), "Напишіть, що купили");
 assert.equal(captureBlockReason("voice", { images: 0, audio: true, fromVideo: false, text: "", note: "" }), null);
+assert.equal(defaultScanMode("video"), "set");
+assert.equal(defaultScanMode("receipt"), "add");
+
+const householdA = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+const householdB = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+const userA = "cccccccc-cccc-cccc-cccc-cccccccccccc";
+const linked = { householdId: householdA, userId: userA, linkedAt: "2026-11-13T08:00:00Z" };
+const grantA = decideChannelAccess({ binding: linked, member: true, targetHouseholdId: householdA });
+assert.equal(grantA.allowed, true);
+assert.equal(decideChannelAccess({ binding: null, member: false, targetHouseholdId: householdA }).allowed, false);
+assert.equal(decideChannelAccess({ binding: { ...linked, linkedAt: null }, member: true, targetHouseholdId: householdA }).reason, "unbound");
+assert.equal(decideChannelAccess({ binding: linked, member: false, targetHouseholdId: householdA }).reason, "not_member");
+assert.equal(decideChannelAccess({ binding: linked, member: true, targetHouseholdId: householdB }).reason, "other_household");
+assert.equal(scopedHousehold(grantA, householdB), null);
+assert.equal(scopedHousehold(decideChannelAccess({ binding: null, member: false, targetHouseholdId: null }), householdA), null);
+assert.equal(scopedHousehold(grantA, householdA), householdA);
+const visible = rowsForGrant(grantA, [
+  { householdId: householdA, name: "Молоко" },
+  { householdId: householdB, name: "Чуже" },
+]);
+assert.deepEqual(visible.map((row) => row.name), ["Молоко"]);
+assert.equal(rowsForGrant(decideChannelAccess({ binding: null, member: false, targetHouseholdId: null }), [{ householdId: householdA, name: "Молоко" }]).length, 0);
+
+assert.equal(webhookSecretOk(null, "secret"), false);
+assert.equal(webhookSecretOk("nope", "secret"), false);
+assert.equal(webhookSecretOk("secret", "secret"), true);
+assert.deepEqual(missingBotEnv({}), ["TELEGRAM_BOT_TOKEN", "TELEGRAM_WEBHOOK_SECRET", "NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SECRET_KEY"]);
+assert.equal(supabaseServerKey({ secretKey: "sb_secret_new", serviceRoleKey: "legacy" }), "sb_secret_new");
+assert.equal(supabaseServerKey({ serviceRoleKey: "legacy" }), "legacy");
+assert.equal(missingBotEnv({ token: "t", webhookSecret: "s", supabaseUrl: "https://db", serviceRoleKey: "legacy" }).length, 0);
+
+assert.equal(pendingExternalId(userA), `pending:${userA}`);
+assert.equal(normalizeLinkCode(" abcd efgh "), "ABCDEFGH");
+assert.equal(linkCodeFromBytes(Uint8Array.from([0, 1])), "AB");
+const freshCode = {
+  id: "row",
+  householdId: householdA,
+  userId: userA,
+  expiresAt: "2099-01-01T00:00:00Z",
+  linkedAt: null,
+};
+assert.equal(decideRedeem({ row: freshCode, nowMs: Date.parse("2026-11-13T00:00:00Z"), member: true, chatOwnerHouseholdId: null }).ok, true);
+assert.equal(decideRedeem({ row: null, nowMs: 0, member: false, chatOwnerHouseholdId: null }).reason, "missing");
+assert.equal(decideRedeem({ row: { ...freshCode, expiresAt: "2020-01-01T00:00:00Z" }, nowMs: Date.parse("2026-11-13T00:00:00Z"), member: true, chatOwnerHouseholdId: null }).reason, "expired");
+assert.equal(decideRedeem({ row: freshCode, nowMs: Date.parse("2026-11-13T00:00:00Z"), member: false, chatOwnerHouseholdId: null }).reason, "not_member");
+assert.equal(decideRedeem({ row: freshCode, nowMs: Date.parse("2026-11-13T00:00:00Z"), member: true, chatOwnerHouseholdId: householdB }).reason, "chat_taken");
+assert.match(redeemFailureText("not_member"), /Код недійсний/);
+assert.match(redeemFailureText("chat_taken"), /вже прив/);
+
+const scanId = "11111111-1111-1111-1111-111111111111";
+assert.equal(startArgument("/start CODE"), "CODE");
+assert.equal(startArgument("/start@CookEatBot CODE"), "CODE");
+assert.equal(startArgument("/start"), "");
+assert.equal(startArgument("купив сир"), null);
+assert.equal(audioFormatFor("audio/ogg"), "ogg");
+assert.equal(quickAsk("Що на вечерю?"), "dinner");
+assert.equal(quickAsk("Список покупок"), "shopping");
+assert.equal(quickAsk("Залишки"), "stock");
+assert.equal(quickAsk("купив сир"), null);
+
+function tgMessage(extra: Record<string, unknown>) {
+  return readTelegramUpdate({
+    update_id: 1,
+    message: { message_id: 1, from: { id: 42, is_bot: false, first_name: "Оля" }, chat: { id: 42, type: "private" }, ...extra },
+  });
+}
+const voiceUpdate = tgMessage({ voice: { file_id: "voice-1", mime_type: "audio/ogg", file_size: 2000 } });
+assert.equal(voiceUpdate.kind, "message");
+if (voiceUpdate.kind === "message") {
+  assert.equal(voiceUpdate.message.inputType, "voice");
+  assert.equal(voiceUpdate.message.senderId, "42");
+  assert.equal(voiceUpdate.message.chatId, "42");
+  assert.equal(voiceUpdate.message.media?.fileId, "voice-1");
+}
+const photoUpdate = tgMessage({ photo: [{ file_id: "small", file_size: 100 }, { file_id: "big", file_size: 2000 }] });
+if (photoUpdate.kind === "message") assert.equal(photoUpdate.message.inputType, "receipt");
+const videoUpdate = tgMessage({ video: { file_id: "vid", mime_type: "video/mp4", file_size: 3000 } });
+if (videoUpdate.kind === "message") assert.equal(videoUpdate.message.inputType, "video");
+const shotUpdate = tgMessage({ document: { file_id: "shot", mime_type: "image/png", file_size: 4000 } });
+if (shotUpdate.kind === "message") assert.equal(shotUpdate.message.inputType, "screenshot");
+const textUpdate = tgMessage({ text: "купив сир і сметану" });
+if (textUpdate.kind === "message") {
+  assert.equal(textUpdate.message.inputType, "text");
+  assert.equal(textUpdate.message.text, "купив сир і сметану");
+}
+const pressUpdate = readTelegramUpdate({
+  callback_query: {
+    id: "cb",
+    from: { id: 42, is_bot: false },
+    data: `ok:${scanId}`,
+    message: { message_id: 2, chat: { id: -100, type: "group" } },
+  },
+});
+assert.equal(pressUpdate.kind, "press");
+if (pressUpdate.kind === "press") {
+  assert.equal(pressUpdate.press.chatId, "-100");
+  assert.equal(parsePressData(pressUpdate.press.data)?.action, "ok");
+}
+assert.equal(readTelegramUpdate({ update_id: 2 }).kind, "ignore");
+
+const buttons = scanButtons(scanId, "https://cook.example/scan?id=" + scanId);
+assert.deepEqual(buttons.flat().map((button) => button.label), ["Записати", "Виправити", "У покупки", "Уже купили"]);
+assert.equal(buttons[0][1]?.url?.includes("/scan?id="), true);
+const replyText = recognitionText({
+  inputType: "receipt",
+  items: [
+    { raw: "МОЛОКО", productId: null, name: "Молоко", category: "молочне", unit: "мл", quantity: 900, uncertain: false, price: 40 },
+    { raw: "ФIЛЕ", productId: null, name: "Філе", category: "інше", unit: "г", quantity: 600, uncertain: true, price: null },
+  ],
+  store: "Сільпо",
+  total: 1284.5,
+  mode: "add",
+  now: new Date("2026-11-12T10:00:00Z"),
+});
+assert.match(replyText, /Сільпо/);
+assert.match(replyText, /1 284,50 ₴/);
+assert.match(replyText, /під питанням/);
+assert.match(replyText, /ФIЛЕ → Філе/);
+assert.match(wroteSummary("add", 18, 1284.5, new Date("2026-11-12T10:00:00Z")), /18 позицій/);
+assert.match(wroteSummary("add", 18, 1284.5, new Date("2026-11-12T10:00:00Z")), /листопада/);
+assert.match(dinnerText([]), /немає/);
+assert.match(dinnerText(["Борщ"]), /Борщ/);
+assert.match(shoppingText([]), /порожній/);
+assert.match(shoppingText([{ name: "Хліб", checked: false }]), /Хліб/);
+assert.match(stockText([]), /Немає позицій/);
+assert.match(stockText([{ name: "Молоко", detail: "мало" }]), /Молоко/);
+assert.equal(manualShoppingRow({ householdId: householdA, weekStart: "2026-11-09", title: "Хліб" }).household_id, householdA);
+assert.equal(manualShoppingRow({ householdId: householdA, weekStart: "2026-11-09", title: "Хліб" }).source, "manual");
 
 console.log("ok: скан — розпізнавання, черга, наслідки");

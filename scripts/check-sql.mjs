@@ -165,6 +165,55 @@ const confirmOk =
 
 console.log(`confirm_scan(add): запас ${stockAfterConfirm[0]?.quantity}, чек ${receiptAfterConfirm.length}, позицій ${riAfterConfirm.length}, статус ${scanStatus[0]?.status}, рух ${movAfterConfirm.length} — ${confirmOk ? "OK" : "FAIL"}`);
 
+let channelClosed = false;
+try {
+  const changed = await runAs(b, `update incoming_scans set store_name = 'чужий' where household_id = '${hid}' returning id`);
+  const leakedScans = await runAs(b, `select id from incoming_scans where household_id = '${hid}'`);
+  const leakedCodes = await runAs(b, `select link_code from channel_bindings where household_id = '${hid}'`);
+  channelClosed = changed.length === 0 && leakedScans.length === 0 && leakedCodes.length === 0;
+} catch (error) {
+  console.error("channel closed", error.message);
+}
+
+let foreignConfirmBlocked = false;
+await runAs(
+  a,
+  `insert into incoming_scans (household_id, sent_by, channel, input_type, status, mode, items) values ('${hid}', '${a}', 'telegram', 'voice', 'pending', 'add', '[]'::jsonb)`,
+);
+const [{ id: foreignId }] = await runAs(a, `select id from incoming_scans where input_type = 'voice' and status = 'pending' limit 1`);
+try {
+  await runAs(b, `select confirm_scan('${foreignId}')`);
+} catch {
+  foreignConfirmBlocked = true;
+}
+const foreignStatus = await runAs(a, `select status from incoming_scans where id = '${foreignId}'`);
+foreignConfirmBlocked = foreignConfirmBlocked && foreignStatus[0]?.status === "pending";
+
+let serviceConfirmed = false;
+const serviceItems = JSON.stringify([
+  { raw: "Хліб", productId: pid, name: "Хліб", category: "інше", unit: "шт", quantity: 1, uncertain: false, price: null },
+]);
+try {
+  await db.exec(
+    `insert into incoming_scans (household_id, sent_by, channel, input_type, status, mode, items) values ('${hid}', '${a}', 'telegram', 'text', 'pending', 'add', '${serviceItems}'::jsonb)`,
+  );
+  const [{ id: serviceId }] = (await db.query(`select id from incoming_scans where input_type = 'text' and status = 'pending' limit 1`)).rows;
+  await db.exec(`select set_config('request.jwt.sub', '', false)`);
+  await db.exec(`set role service_role`);
+  await db.query(`select confirm_scan('${serviceId}')`);
+  await db.exec(`reset role`);
+  const serviceStatus = (await db.query(`select status from incoming_scans where id = '${serviceId}'`)).rows;
+  serviceConfirmed = serviceStatus[0]?.status === "confirmed";
+} catch (error) {
+  console.error("service_role confirm", error.message);
+  try {
+    await db.exec(`reset role`);
+  } catch {
+    // роль уже скинуто
+  }
+}
+console.log(`Чужа сім'я: читання ${channelClosed ? "закрито" : "ВІДКРИТО"}, confirm ${foreignConfirmBlocked ? "закрито" : "ПРОЙШОВ"}, service_role ${serviceConfirmed ? "OK" : "FAIL"}`);
+
 // ---------- Підсумок ----------
 
 const receiptsB = await runAs(b, `select * from receipts`);
@@ -177,7 +226,7 @@ const newTablesOk =
   scansA.length === 1 && scansB.length === 0 && scanBlocked &&
   cbA.length === 1 && cbB.length === 0;
 
-const pass = seenByA.length === 1 && seenByB.length === 0 && blocked && pantryOk && newTablesOk && confirmOk;
+const pass = seenByA.length === 1 && seenByB.length === 0 && blocked && pantryOk && newTablesOk && confirmOk && channelClosed && foreignConfirmBlocked && serviceConfirmed;
 console.log(`RLS: власник бачить ${seenByA.length}, сторонній бачить ${seenByB.length}, чужий запис ${blocked ? "заблоковано" : "ПРОЙШОВ"}`);
 console.log(`Нові таблиці RLS: ${newTablesOk ? "OK" : "FAIL"}`);
 console.log(`Підтвердження скану: ${confirmOk ? "OK" : "FAIL"}`);
