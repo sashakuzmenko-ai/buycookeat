@@ -80,7 +80,7 @@ export function ClarifyDialog({
     >
       <div className="flex items-center justify-between border-b border-line pb-4">
         <h2 className="font-display text-lg font-bold">Уточнити позицію</h2>
-        <button type="button" onClick={onClose} aria-label="Закрити" className="inline-flex size-9 cursor-pointer items-center justify-center rounded-full text-xl text-ink-2">
+        <button type="button" onClick={onClose} aria-label="Закрити" className="inline-flex size-11 min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center rounded-full text-xl text-ink-2 hover:bg-soft">
           ×
         </button>
       </div>
@@ -94,7 +94,7 @@ export function ClarifyDialog({
       >
         <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-ink-2" htmlFor="clarify-product">
           Продукт
-          <select id="clarify-product" className="input" value={productId} onChange={(event) => chooseProduct(event.target.value)}>
+          <select id="clarify-product" className="w-full min-h-[44px] rounded-12 border border-line-strong bg-surface px-3.5 py-2 text-[15px] text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-menu-tint" value={productId} onChange={(event) => chooseProduct(event.target.value)}>
             <option value="">Новий продукт</option>
             {products.map((product) => (
               <option key={product.id} value={product.id}>
@@ -107,11 +107,11 @@ export function ClarifyDialog({
           <div className="flex flex-col gap-4">
             <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-ink-2" htmlFor="clarify-name">
               Назва
-              <input id="clarify-name" className="input" value={name} maxLength={80} onChange={(event) => setName(event.target.value)} />
+              <input id="clarify-name" className="w-full min-h-[44px] rounded-12 border border-line-strong bg-surface px-3.5 py-2 text-[15px] text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-menu-tint" value={name} maxLength={80} onChange={(event) => setName(event.target.value)} />
             </label>
             <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-ink-2" htmlFor="clarify-category">
               Категорія
-              <select id="clarify-category" className="input" value={category} onChange={(event) => setCategory(event.target.value)}>
+              <select id="clarify-category" className="w-full min-h-[44px] rounded-12 border border-line-strong bg-surface px-3.5 py-2 text-[15px] text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-menu-tint" value={category} onChange={(event) => setCategory(event.target.value)}>
                 {PRODUCT_CATEGORIES.map((entry) => (
                   <option key={entry}>{entry}</option>
                 ))}
@@ -122,11 +122,11 @@ export function ClarifyDialog({
         <div className="grid grid-cols-2 gap-3">
           <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-ink-2" htmlFor="clarify-qty">
             Кількість
-            <input id="clarify-qty" className="input font-mono" inputMode="decimal" value={quantity} onChange={(event) => setQuantity(event.target.value)} />
+            <input id="clarify-qty" className="w-full min-h-[44px] rounded-12 border border-line-strong bg-surface px-3.5 py-2 text-[15px] text-ink font-mono outline-none transition focus:border-brand focus:ring-2 focus:ring-menu-tint" inputMode="decimal" value={quantity} onChange={(event) => setQuantity(event.target.value)} />
           </label>
           <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-ink-2" htmlFor="clarify-unit">
             Одиниця
-            <select id="clarify-unit" className="input" value={unit} onChange={(event) => setUnit(cleanUnit(event.target.value))}>
+            <select id="clarify-unit" className="w-full min-h-[44px] rounded-12 border border-line-strong bg-surface px-3.5 py-2 text-[15px] text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-menu-tint" value={unit} onChange={(event) => setUnit(cleanUnit(event.target.value))}>
               {UNITS.map((entry) => (
                 <option key={entry}>{entry}</option>
               ))}

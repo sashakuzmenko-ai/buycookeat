@@ -50,14 +50,14 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
 
   return (
     <div className="mx-auto max-w-3xl min-w-0">
-      <h1 className="h1 mb-1">Продукти</h1>
+      <h1 className="font-display text-2xl font-bold tracking-tight text-ink md:text-[28px] mb-1">Продукти</h1>
       <p className="mb-4 text-[15px] text-ink-2">
         Довідник для рецептів і списку покупок. Магазин за замовчуванням визначає, де шукати товар у списку.
       </p>
       <Notice params={await searchParams} />
 
       <Card className="mb-5 p-5">
-        <h2 className="h2 mb-3">Новий продукт</h2>
+        <h2 className="font-display text-base font-bold text-ink md:text-[18px] mb-3">Новий продукт</h2>
         <form action={addProduct} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="Назва" id="name" name="name" required wrapperClassName="sm:col-span-2 lg:col-span-1" />
           <LabeledSelect label="Категорія" id="category" name="category" defaultValue="інше">
@@ -101,7 +101,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
           if (list.length === 0) return null;
           return (
             <Card key={category} className="p-0 overflow-hidden">
-              <h2 className="h2 border-b border-line px-5 py-3 capitalize">{category}</h2>
+              <h2 className="font-display text-base font-bold text-ink md:text-[18px] border-b border-line px-5 py-3 capitalize">{category}</h2>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[min(100%,22rem)] text-left text-[15px]">
                   <thead>
@@ -143,7 +143,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
                             <input type="hidden" name="id" value={p.id} />
                             <button
                               type="submit"
-                              className="btn-ghost min-h-[44px] min-w-[44px]"
+                              className="inline-flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center rounded-12 px-3 py-2 text-sm text-ink-2 transition hover:bg-soft hover:text-recipes focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink disabled:opacity-50"
                               aria-label={`Видалити: ${p.name}`}
                             >
                               ×

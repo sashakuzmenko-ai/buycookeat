@@ -40,14 +40,14 @@ export function ReceiptDetail({
       </Link>
       <div>
         <p className="text-sm font-semibold text-finance">Чек</p>
-        <h1 className="h1 mt-1">{title}</h1>
+        <h1 className="font-display text-2xl font-bold tracking-tight text-ink md:text-[28px] mt-1">{title}</h1>
         <p className="mt-2 font-mono text-[15px] text-ink-2">
           {dateLabel} · {amount}
         </p>
         <p className="mt-1 text-sm text-ink-2">{note}</p>
       </div>
       <Card>
-        <h2 className="h2 mb-3">Позиції</h2>
+        <h2 className="font-display text-base font-bold text-ink md:text-[18px] mb-3">Позиції</h2>
         {items.length === 0 ? (
           <p className="text-[15px] text-ink-2">У цьому чеку немає позицій. Суму записано загальним рядком.</p>
         ) : (

@@ -99,7 +99,7 @@ function ReviewBody({
           ←
         </Link>
         <div className="min-w-0 flex-1">
-          <h1 className="font-display text-xl font-bold">Перевірка скану</h1>
+          <h2 className="font-display text-xl font-bold">Перевірка скану</h2>
           <p className="truncate text-[13px] text-ink-muted-on-dark">
             {channelLabel(scan.channel)} · {inputPhrase(scan.inputType)} · {formatScanWhen(scan.createdAt, now)}
           </p>

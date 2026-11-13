@@ -13,8 +13,6 @@ export interface MobileHomeProps {
 
 export function MobileHome({ model }: Readonly<MobileHomeProps>) {
   const {
-    dateLabel,
-    familyCount,
     portions,
     finance,
     menu,
@@ -28,29 +26,14 @@ export function MobileHome({ model }: Readonly<MobileHomeProps>) {
 
   return (
     <div className="flex flex-col gap-4 w-full">
-      {/* 1. Шапка: дата, заголовок, кругла плашка-лічильник «Сім'я» */}
-      <div className="flex justify-between items-center">
-        <div className="flex flex-col gap-1">
-          <div className="text-sm text-ink-2">{dateLabel}</div>
-          <h1 className="m-0 font-display font-bold text-2xl text-ink">Сьогодні вдома</h1>
-        </div>
-        <Link
-          href="/settings"
-          aria-label="Сім’я"
-          className="w-11 h-11 rounded-full bg-family-tint text-family-ink flex items-center justify-center font-bold text-[15px] transition hover:brightness-95 shrink-0"
-        >
-          {familyCount || 1}
-        </Link>
-      </div>
-
       {/* 2. Бюджет місяця на кольорі Фінансів */}
       <Link
         href="/finance"
         className="box-border p-[18px] rounded-[20px] bg-finance text-white flex flex-col gap-2.5 transition hover:brightness-105"
       >
         <div className="flex justify-between items-baseline gap-2">
-          <span className="text-[13px] font-semibold text-[#DCE1F8]">{finance.monthLabel}</span>
-          <span className="text-[13px] text-[#DCE1F8]">
+          <span className="text-[13px] font-semibold text-finance-tint">{finance.monthLabel}</span>
+          <span className="text-[13px] text-finance-tint">
             {finance.hasBudget && finance.budget ? `з ${formatUah(finance.budget)}` : "без бюджету"}
           </span>
         </div>
@@ -67,14 +50,14 @@ export function MobileHome({ model }: Readonly<MobileHomeProps>) {
               aria-valuemin={0}
               aria-valuemax={100}
               aria-label="Використання бюджету"
-              className="h-2 rounded-full bg-[#5566BB] overflow-hidden"
+              className="h-2 rounded-full bg-white/20 overflow-hidden"
             >
               <div
                 style={{ width: `${finance.progressPercent}%` }}
                 className="h-full rounded-full bg-lime transition-all duration-300"
               />
             </div>
-            <div className="text-[13px] text-[#DCE1F8]">
+            <div className="text-[13px] text-finance-tint">
               {finance.paceNote
                 ? `${finance.paceNote.charAt(0).toUpperCase() + finance.paceNote.slice(1)} · `
                 : ""}
@@ -84,7 +67,7 @@ export function MobileHome({ model }: Readonly<MobileHomeProps>) {
             </div>
           </>
         ) : (
-          <div className="text-[13px] text-[#DCE1F8]">
+          <div className="text-[13px] text-finance-tint">
             {finance.receiptCount === 0
               ? "Надішліть перший чек або додайте витрату"
               : "Задайте місячний бюджет у Сім’ї"}
@@ -168,7 +151,7 @@ export function MobileHome({ model }: Readonly<MobileHomeProps>) {
             </p>
             <Link
               href="/menu"
-              className="btn h-12 rounded-[14px] text-[15px] font-semibold flex items-center justify-center mt-1"
+              className="inline-flex min-h-[48px] h-12 cursor-pointer items-center justify-center gap-1.5 rounded-[14px] bg-brand px-4.5 py-2.5 text-[15px] font-semibold text-white transition hover:bg-menu-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 mt-1"
             >
               Перейти до меню
             </Link>

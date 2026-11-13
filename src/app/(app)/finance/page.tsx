@@ -24,7 +24,7 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
   if (data.error) {
     return (
       <div className="mx-auto max-w-3xl">
-        <h1 className="h1">Фінанси</h1>
+        <h1 className="font-display text-2xl font-bold tracking-tight text-ink md:text-[28px]">Фінанси</h1>
         <p role="alert" className="mt-4 rounded-12 border border-recipes/30 bg-recipes-tint px-4 py-3 text-sm text-recipes-ink">
           Не вдалося завантажити витрати. Сторінка читає чеки й місячний бюджет — вони з’являться, коли міграцію епіку застосовано.
         </p>

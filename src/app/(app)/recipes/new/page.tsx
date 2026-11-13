@@ -9,7 +9,7 @@ export default async function NewRecipePage({ searchParams }: PageProps<"/recipe
   return (
     <div className="mx-auto max-w-2xl">
       <p className="text-sm font-semibold text-recipes">Рецепти</p>
-      <h1 className="h1 mb-4">Новий рецепт</h1>
+      <h1 className="font-display text-2xl font-bold tracking-tight text-ink md:text-[28px] mb-4">Новий рецепт</h1>
       <Notice params={await searchParams} />
       <RecipeForm action={saveRecipe} products={products ?? []} />
     </div>

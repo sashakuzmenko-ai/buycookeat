@@ -105,7 +105,7 @@ function MoreDrawer({ household, pathname, onClose }: Readonly<MoreDrawerProps>)
             type="button"
             onClick={onClose}
             aria-label="Закрити"
-            className="w-8 h-8 rounded-full bg-soft flex items-center justify-center text-ink-2 hover:text-ink text-sm cursor-pointer"
+            className="w-11 h-11 min-h-[44px] min-w-[44px] rounded-full bg-soft flex items-center justify-center text-ink-2 hover:text-ink text-base cursor-pointer"
           >
             ✕
           </button>

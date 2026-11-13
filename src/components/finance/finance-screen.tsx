@@ -76,11 +76,11 @@ function MobileHeader({ model }: { readonly model: FinanceModel }) {
         <PeriodArrows model={model} onDark />
       </div>
       {model.emptyHousehold ? (
-        <h1 className="font-display text-2xl font-bold">Ще немає чеків</h1>
+        <p className="font-display text-2xl font-bold">Ще немає чеків</p>
       ) : (
         <>
           <div className="flex items-baseline gap-2.5">
-            <h1 className="font-display text-[34px] leading-none font-bold">{model.spentLabel}</h1>
+            <p className="font-display text-[34px] leading-none font-bold">{model.spentLabel}</p>
             {model.mobileBudget ? <span className="text-sm text-white/80">{model.mobileBudget}</span> : null}
           </div>
           {model.paceBar !== null && model.paceCaption ? (
@@ -110,7 +110,7 @@ function DesktopHeader({ model }: { readonly model: FinanceModel }) {
         <p className="text-sm font-semibold text-finance">Фінанси</p>
         <div className="flex items-center gap-2">
           <PeriodArrows model={model} />
-          <h1 className="h1">{model.title}</h1>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-ink md:text-[28px]">{model.title}</h1>
         </div>
       </div>
       <PeriodSwitch model={model} />
@@ -234,7 +234,7 @@ function MonthChart({ model }: { readonly model: FinanceModel }) {
   return (
     <Card className="flex flex-col gap-5">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h2 className="h2">Історія по місяцях</h2>
+        <h2 className="font-display text-base font-bold text-ink md:text-[18px]">Історія по місяцях</h2>
         <span className="text-[13px] text-ink-2">{model.monthCaption}</span>
       </div>
       {model.months.length === 0 ? (
@@ -329,7 +329,7 @@ function BarFill({ bar }: { readonly bar: FinanceBar }) {
 function ReceiptList({ rows, empty }: { readonly rows: readonly FinanceReceiptRow[]; readonly empty: string }) {
   return (
     <Card className="flex flex-col gap-2">
-      <h2 className="h2 pb-1">Чеки</h2>
+      <h2 className="font-display text-base font-bold text-ink md:text-[18px] pb-1">Чеки</h2>
       {rows.length === 0 ? (
         <p className="text-[15px] text-ink-2">{empty}</p>
       ) : (
@@ -360,7 +360,7 @@ function ReceiptList({ rows, empty }: { readonly rows: readonly FinanceReceiptRo
 function CategoryCard({ model }: { readonly model: FinanceModel }) {
   return (
     <Card className="flex flex-col gap-3.5">
-      <h2 className="h2">На що йдуть гроші</h2>
+      <h2 className="font-display text-base font-bold text-ink md:text-[18px]">На що йдуть гроші</h2>
       {model.categories.length === 0 ? (
         <p className="text-[15px] text-ink-2">{model.categoryEmpty}</p>
       ) : (
@@ -387,7 +387,7 @@ function CategoryRow({ row }: { readonly row: FinanceMeter }) {
 function StoreCard({ model }: { readonly model: FinanceModel }) {
   return (
     <Card className="flex flex-col gap-3.5">
-      <h2 className="h2">Де купуємо</h2>
+      <h2 className="font-display text-base font-bold text-ink md:text-[18px]">Де купуємо</h2>
       {model.stores.length === 0 ? (
         <p className="text-[15px] text-ink-2">{model.storeEmpty}</p>
       ) : (

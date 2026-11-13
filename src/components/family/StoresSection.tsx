@@ -66,7 +66,7 @@ export function StoresSection({ stores }: StoresSectionProps) {
                   <button
                     type="submit"
                     aria-label={`Видалити магазин: ${s.name}`}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-lg text-ink-2 hover:bg-soft hover:text-ink"
+                    className="flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-lg text-ink-2 hover:bg-soft hover:text-ink"
                   >
                     ×
                   </button>
@@ -86,7 +86,7 @@ export function StoresSection({ stores }: StoresSectionProps) {
         <div className="grid gap-3 sm:grid-cols-[2fr_1fr_1fr]">
           <div className="flex flex-col gap-1">
             <label htmlFor="st-name" className="text-[13px] font-semibold text-ink-2">
-              Назва <span className="text-[#8C2A18]">*</span>
+              Назва <span className="text-recipes-ink">*</span>
             </label>
             <input
               id="st-name"

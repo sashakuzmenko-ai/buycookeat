@@ -29,7 +29,7 @@ export function PantryAlertsSection({ alerts, totalCount }: Readonly<PantryAlert
               </Link>
             </div>
           ) : (
-            <span className="text-[#14522F] font-medium">
+            <span className="text-menu-ink font-medium">
               ✓ Усі запаси в нормі — нічого не закінчується і терміни не спливають.
             </span>
           )}

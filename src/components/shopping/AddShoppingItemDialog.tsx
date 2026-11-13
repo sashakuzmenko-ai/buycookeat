@@ -50,7 +50,7 @@ export function AddShoppingItemDialog({
           <button
             type="button"
             onClick={() => setIsOpen(false)}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-ink-2 hover:bg-soft hover:text-ink text-xl transition cursor-pointer"
+            className="w-11 h-11 min-h-[44px] min-w-[44px] rounded-full flex items-center justify-center text-ink-2 hover:bg-soft hover:text-ink text-xl transition cursor-pointer"
             aria-label="Закрити"
           >
             ×
@@ -107,7 +107,7 @@ export function AddShoppingItemDialog({
             </button>
             <button
               type="submit"
-              className="h-11 px-5 rounded-12 bg-[#8A5600] text-white text-sm font-semibold hover:bg-[#724600] transition cursor-pointer"
+              className="h-11 px-5 rounded-12 bg-shops text-white text-sm font-semibold hover:bg-shops-ink transition cursor-pointer"
             >
               Додати
             </button>

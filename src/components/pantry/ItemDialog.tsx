@@ -59,7 +59,7 @@ export function ItemDialog({
         <button
           type="button"
           onClick={onClose}
-          className="size-9 rounded-full inline-flex items-center justify-center text-ink-2 hover:bg-soft hover:text-ink text-xl transition"
+          className="size-11 min-h-[44px] min-w-[44px] rounded-full inline-flex items-center justify-center text-ink-2 hover:bg-soft hover:text-ink text-xl transition"
           aria-label="Закрити"
         >
           ✕
@@ -76,7 +76,7 @@ export function ItemDialog({
           </div>
         ) : (
           <div>
-            <label htmlFor="pantry-product-select" className="label">
+            <label htmlFor="pantry-product-select" className="mb-1.5 block text-[13px] font-semibold text-ink-2">
               Продукт
             </label>
             <select
@@ -84,7 +84,7 @@ export function ItemDialog({
               name="product_id"
               required
               defaultValue=""
-              className="input"
+              className="w-full min-h-[44px] rounded-12 border border-line-strong bg-surface px-3.5 py-2 text-[15px] text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-menu-tint"
             >
               <option value="" disabled>
                 Оберіть продукт…
@@ -100,7 +100,7 @@ export function ItemDialog({
 
         <div className="flex gap-3 items-end">
           <div className="flex-1">
-            <label htmlFor="pantry-quantity-input" className="label">
+            <label htmlFor="pantry-quantity-input" className="mb-1.5 block text-[13px] font-semibold text-ink-2">
               Кількість
             </label>
             <input
@@ -112,7 +112,7 @@ export function ItemDialog({
               required
               defaultValue={item ? item.quantity : ""}
               placeholder="напр. 500"
-              className="input font-mono"
+              className="w-full min-h-[44px] rounded-12 border border-line-strong bg-surface px-3.5 py-2 text-[15px] text-ink font-mono outline-none transition focus:border-brand focus:ring-2 focus:ring-menu-tint"
             />
           </div>
           {isEdit && (
@@ -123,14 +123,14 @@ export function ItemDialog({
         </div>
 
         <div>
-          <label htmlFor="pantry-zone-select" className="label">
+          <label htmlFor="pantry-zone-select" className="mb-1.5 block text-[13px] font-semibold text-ink-2">
             Зона зберігання
           </label>
           <select
             id="pantry-zone-select"
             name="storage_zone"
             defaultValue={selectedZone}
-            className="input"
+            className="w-full min-h-[44px] rounded-12 border border-line-strong bg-surface px-3.5 py-2 text-[15px] text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-menu-tint"
           >
             {STORAGE_ZONES.map((zone) => (
               <option key={zone} value={zone}>
@@ -141,7 +141,7 @@ export function ItemDialog({
         </div>
 
         <div>
-          <label htmlFor="pantry-expiry-input" className="label">
+          <label htmlFor="pantry-expiry-input" className="mb-1.5 block text-[13px] font-semibold text-ink-2">
             Термін придатності (необов&apos;язково)
           </label>
           <input
@@ -149,7 +149,7 @@ export function ItemDialog({
             name="expires_at"
             type="date"
             defaultValue={item?.expiresAt ?? ""}
-            className="input font-mono"
+            className="w-full min-h-[44px] rounded-12 border border-line-strong bg-surface px-3.5 py-2 text-[15px] text-ink font-mono outline-none transition focus:border-brand focus:ring-2 focus:ring-menu-tint"
           />
         </div>
 
@@ -159,7 +159,7 @@ export function ItemDialog({
               <button
                 type="submit"
                 formAction={deletePantryItem}
-                className="btn-ghost text-recipes hover:bg-recipes-tint"
+                className="inline-flex min-h-[44px] cursor-pointer items-center justify-center rounded-12 px-3 py-2 text-sm font-semibold text-recipes hover:bg-recipes-tint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink disabled:opacity-50"
               >
                 Видалити
               </button>

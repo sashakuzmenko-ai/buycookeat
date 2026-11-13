@@ -10,7 +10,7 @@ export default function SetupPage() {
       <div className="mb-8 flex items-center gap-3">
         <Logo size="md" aria-hidden className="shrink-0" />
         <div>
-          <h1 className="h1 mb-0.5">Підключимо базу</h1>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-ink md:text-[28px] mb-0.5">Підключимо базу</h1>
           <p className="text-[15px] text-ink-2">Купуй. Готуй. Смакуй. — спочатку зв&apos;яжемо Supabase.</p>
         </div>
       </div>
@@ -19,7 +19,7 @@ export default function SetupPage() {
         розробки чи нового середовища.
       </p>
       <Card className="p-5">
-        <h2 className="h2 mb-4">Що зробити</h2>
+        <h2 className="font-display text-base font-bold text-ink md:text-[18px] mb-4">Що зробити</h2>
         <ol className="list-none space-y-4 text-[15px] text-ink">
           <li className="flex gap-3">
             <span

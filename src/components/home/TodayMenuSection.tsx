@@ -23,7 +23,10 @@ export function TodayMenuSection({ meals, portions }: Readonly<TodayMenuSectionP
           <p className="text-sm text-ink-2 m-0">
             На сьогодні страв ще не заплановано. Складіть меню тижня, щоб бачити розклад і запаси.
           </p>
-          <Link href="/menu" className="btn text-sm">
+          <Link
+            href="/menu"
+            className="inline-flex min-h-[44px] cursor-pointer items-center justify-center gap-1.5 rounded-12 bg-brand px-4.5 py-2.5 text-sm font-semibold text-white transition hover:bg-menu-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+          >
             Скласти меню
           </Link>
         </div>

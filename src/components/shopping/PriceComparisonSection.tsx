@@ -51,7 +51,7 @@ export function PriceComparisonSection({ data }: Readonly<PriceComparisonSection
                         <span
                           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-[8px] font-mono text-[13px] ${
                             cell.isMin
-                              ? "bg-[#FBEFD2] text-[#14201A] font-bold ring-1 ring-[#8A5600]/30"
+                              ? "bg-shops-tint text-ink font-bold ring-1 ring-shops/30"
                               : "text-ink-2 font-normal"
                           }`}
                           aria-label={cell.isMin ? `найнижча ціна: ${cell.formattedPrice}` : cell.formattedPrice}
@@ -59,7 +59,7 @@ export function PriceComparisonSection({ data }: Readonly<PriceComparisonSection
                           {cell.formattedPrice}
                           {cell.isMin && (
                             <span
-                              className="text-[10px] font-bold text-[#8A5600] px-1 py-0.2 rounded bg-[#EED8A1] uppercase select-none"
+                              className="text-[10px] font-bold text-shops-ink px-1 py-0.5 rounded bg-shops-tint uppercase select-none"
                               aria-hidden="true"
                             >
                               мін
@@ -67,7 +67,7 @@ export function PriceComparisonSection({ data }: Readonly<PriceComparisonSection
                           )}
                         </span>
                       ) : (
-                        <span className="font-mono text-[13px] text-stone-300">—</span>
+                        <span className="font-mono text-[13px] text-ink-2/40">—</span>
                       )}
                     </div>
                   ))}

@@ -22,7 +22,7 @@ export default async function OnboardingPage({ searchParams }: PageProps<"/onboa
         <p className="mb-1 text-[12px] font-semibold uppercase tracking-[0.08em] text-ink-2">
           Крок 1 з 1
         </p>
-        <h1 className="h1 mb-2">Створимо вашу сім&apos;ю</h1>
+        <h1 className="font-display text-2xl font-bold tracking-tight text-ink md:text-[28px] mb-2">Створимо вашу сім&apos;ю</h1>
         <p className="max-w-sm text-[15px] text-ink-2">
           Назва й місто — на старт. Усе можна змінити пізніше в налаштуваннях.
         </p>
