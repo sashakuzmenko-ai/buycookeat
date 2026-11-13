@@ -44,6 +44,7 @@ import {
   monthLocativeUk,
   monthTitle,
   pace,
+  paceAlertDecision,
   paceDifference,
   paceDifferenceNote,
   parseMoney,
@@ -1227,6 +1228,126 @@ assert.equal(paceDifference(7200, 18000, 12, 30), 0);
 assert.equal(paceDifferenceNote(260), `на ${formatUah(260)} вище темпу`);
 assert.equal(paceDifferenceNote(-200), `на ${formatUah(200)} нижче темпу`);
 assert.equal(paceDifferenceNote(0), "за темпом");
+
+// Рішення про попередження в Telegram про темп витрат (критерії приймання T6)
+// 1. Вимкнено
+assert.deepEqual(
+  paceAlertDecision({
+    enabled: false,
+    budget: 18000,
+    spent: 7460,
+    elapsedDays: 12,
+    spanDays: 30,
+    sentOn: null,
+    today: "2026-11-12",
+  }),
+  { send: false },
+);
+// 2. Немає бюджету (null або <= 0)
+assert.deepEqual(
+  paceAlertDecision({
+    enabled: true,
+    budget: null,
+    spent: 7460,
+    elapsedDays: 12,
+    spanDays: 30,
+    sentOn: null,
+    today: "2026-11-12",
+  }),
+  { send: false },
+);
+assert.deepEqual(
+  paceAlertDecision({
+    enabled: true,
+    budget: 0,
+    spent: 7460,
+    elapsedDays: 12,
+    spanDays: 30,
+    sentOn: null,
+    today: "2026-11-12",
+  }),
+  { send: false },
+);
+assert.deepEqual(
+  paceAlertDecision({
+    enabled: true,
+    budget: -500,
+    spent: 7460,
+    elapsedDays: 12,
+    spanDays: 30,
+    sentOn: null,
+    today: "2026-11-12",
+  }),
+  { send: false },
+);
+// 3. Темп у межах плану
+assert.deepEqual(
+  paceAlertDecision({
+    enabled: true,
+    budget: 18000,
+    spent: 7000,
+    elapsedDays: 12,
+    spanDays: 30,
+    sentOn: null,
+    today: "2026-11-12",
+  }),
+  { send: false },
+);
+assert.deepEqual(
+  paceAlertDecision({
+    enabled: true,
+    budget: 18000,
+    spent: 7200,
+    elapsedDays: 12,
+    spanDays: 30,
+    sentOn: null,
+    today: "2026-11-12",
+  }),
+  { send: false },
+);
+// 4. Повторне надсилання того ж дня (sentOn === today)
+assert.deepEqual(
+  paceAlertDecision({
+    enabled: true,
+    budget: 18000,
+    spent: 7460,
+    elapsedDays: 12,
+    spanDays: 30,
+    sentOn: "2026-11-12",
+    today: "2026-11-12",
+  }),
+  { send: false },
+);
+// 5. Перевищення темпу вперше за день (sentOn: null або sentOn іншого дня)
+const alertFirst = paceAlertDecision({
+  enabled: true,
+  budget: 18000,
+  spent: 7460,
+  elapsedDays: 12,
+  spanDays: 30,
+  sentOn: null,
+  today: "2026-11-12",
+});
+assert.equal(alertFirst.send, true);
+if (alertFirst.send) {
+  assert.match(alertFirst.text, /темп витрат вищий за план/i);
+  assert.match(alertFirst.text, /7\s*460/);
+  assert.match(alertFirst.text, /18\s*000/);
+  assert.match(alertFirst.text, /40%/);
+  assert.match(alertFirst.text, /10\s*540/);
+  assert.match(alertFirst.text, /на 260\s*₴\s*вище темпу/);
+}
+const alertYesterday = paceAlertDecision({
+  enabled: true,
+  budget: 18000,
+  spent: 7460,
+  elapsedDays: 12,
+  spanDays: 30,
+  sentOn: "2026-11-11",
+  today: "2026-11-12",
+});
+assert.equal(alertYesterday.send, true);
+
 assert.equal(chartWeekLabel("2026-10-12", "2026-11-12"), "12–18 жов");
 assert.equal(chartWeekLabel("2026-10-26", "2026-11-12"), "26 жов – 1 лис");
 assert.equal(chartWeekLabel("2026-11-09", "2026-11-12"), "9–12 лис · триває");

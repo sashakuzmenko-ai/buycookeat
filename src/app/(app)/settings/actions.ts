@@ -169,6 +169,24 @@ export async function updateMonthlyBudget(formData: FormData) {
 }
 
 /**
+ * Перемикання попередження про темп витрат у Telegram.
+ */
+export async function togglePaceAlert(formData: FormData) {
+  const { supabase, householdId } = await getContext();
+  const raw = str(formData, "enabled");
+  const enabled = raw === "true" || raw === "on" || raw === "1";
+
+  const { error } = await supabase
+    .from("households")
+    .update({ pace_alert_enabled: enabled })
+    .eq("id", householdId);
+
+  if (error) fail("/settings", error.message);
+  revalidatePath("/settings");
+  revalidatePath("/finance");
+}
+
+/**
  * Перемикання наявності техніки (чип увімк./вимк.).
  */
 export async function toggleEquipment(formData: FormData) {

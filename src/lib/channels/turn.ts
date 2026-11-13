@@ -27,6 +27,8 @@ import {
 import { redeemFailureText } from "./bind.ts";
 import { shouldAnswerText } from "./group.ts";
 import { addScanToShopping, loadGrant, loadOwnedItems, loadProducts, readDinner, readLowStock, readShopping, redeemLink } from "./store.ts";
+import { maybeSendPaceAlert } from "./notify.ts";
+import { todayISO } from "../dates.ts";
 
 type Turn = {
   supabase: SupabaseClient;
@@ -230,6 +232,11 @@ async function onPress(ctx: Turn, press: { pressId: string; chatId: string; data
   if (!committed.ok) {
     await reply(ctx, press.chatId, committed.error);
     return;
+  }
+  try {
+    await maybeSendPaceAlert(ctx.supabase, grant.householdId, todayISO());
+  } catch (err) {
+    console.error("maybeSendPaceAlert in onPress failed", err);
   }
   refreshFamilyViews();
   await reply(ctx, press.chatId, wroteSummary(committed.mode, committed.items.length, committed.total, new Date()));
