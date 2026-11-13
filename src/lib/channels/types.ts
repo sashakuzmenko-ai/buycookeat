@@ -10,9 +10,13 @@ export type ChannelMedia = {
   fileSize: number | null;
 };
 
+export type TelegramChatType = "private" | "group" | "supergroup" | "channel" | "other";
+
 export type InboundMessage = {
   senderId: string;
   chatId: string;
+  chatType: TelegramChatType;
+  chatTitle: string | null;
   inputType: ScanInputType;
   text: string;
   media: ChannelMedia | null;

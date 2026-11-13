@@ -216,7 +216,11 @@ export function FamilyScreen({
           className="flex min-h-[52px] items-center gap-2.5 text-[15px] text-ink no-underline"
         >
           <span className="flex-grow font-semibold">Telegram-бот</span>
-          <span className="text-[14px] text-ink-2">{telegram.linked ? "підключено" : "не підключено"}</span>
+          <span className="text-[14px] text-ink-2">
+            {telegram.linkedCount > 0
+              ? `${telegram.linkedCount} ${telegram.linkedCount === 1 ? "чат" : telegram.linkedCount < 5 ? "чати" : "чатів"}`
+              : "не підключено"}
+          </span>
           <span aria-hidden="true" className="text-ink-2">›</span>
         </a>
       </section>

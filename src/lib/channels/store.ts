@@ -44,7 +44,7 @@ export async function loadGrant(supabase: SupabaseClient, chatId: string): Promi
 
 export async function redeemLink(
   supabase: SupabaseClient,
-  input: { code: string; chatId: string },
+  input: { code: string; chatId: string; chatType?: string | null; chatTitle?: string | null },
 ): Promise<{ ok: true } | { ok: false; reason: RedeemRefusal }> {
   const code = normalizeLinkCode(input.code);
   if (code.length < 8) return { ok: false, reason: "missing" };
@@ -92,6 +92,8 @@ export async function redeemLink(
       linked_at: new Date().toISOString(),
       link_code: null,
       link_code_expires_at: null,
+      chat_type: input.chatType ?? null,
+      title: input.chatTitle ?? null,
     })
     .eq("id", row.id)
     .eq("household_id", row.householdId)

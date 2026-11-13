@@ -56,7 +56,12 @@ async function reply(ctx: Turn, chatId: string, text: string, extra?: { buttons?
   });
 }
 
-async function onStart(ctx: Turn, chatId: string, code: string) {
+async function onStart(
+  ctx: Turn,
+  chatId: string,
+  code: string,
+  meta?: { chatType?: string | null; chatTitle?: string | null },
+) {
   if (!code) {
     const grant = await loadGrant(ctx.supabase, chatId);
     if (!grant.allowed) {
@@ -66,7 +71,12 @@ async function onStart(ctx: Turn, chatId: string, code: string) {
     await reply(ctx, chatId, LINKED_HELLO, { hints: true });
     return;
   }
-  const redeemed = await redeemLink(ctx.supabase, { code, chatId });
+  const redeemed = await redeemLink(ctx.supabase, {
+    code,
+    chatId,
+    chatType: meta?.chatType,
+    chatTitle: meta?.chatTitle,
+  });
   if (!redeemed.ok) {
     await reply(ctx, chatId, redeemFailureText(redeemed.reason));
     return;
@@ -231,7 +241,10 @@ export async function handleTelegramUpdate(ctx: Turn): Promise<void> {
     return;
   }
   if (event.message.startCode !== null) {
-    await onStart(ctx, event.message.chatId, event.message.startCode);
+    await onStart(ctx, event.message.chatId, event.message.startCode, {
+      chatType: event.message.chatType,
+      chatTitle: event.message.chatTitle,
+    });
     return;
   }
   if (event.message.oversized || event.message.media) {
