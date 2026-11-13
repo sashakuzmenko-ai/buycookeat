@@ -100,6 +100,7 @@ import {
   statusLabel,
   stockEffectLabel,
 } from "../src/lib/scan/present.ts";
+import { toInboxScan } from "../src/lib/scan/inbox.ts";
 import { buildScanPrompt, normalizeScanResult } from "../src/lib/scan/recognize.ts";
 import { parseScanRequest } from "../src/lib/scan/request.ts";
 import { decideChannelAccess, missingBotEnv, rowsForGrant, scopedHousehold, supabaseServerKey, webhookSecretOk } from "../src/lib/channels/access.ts";
@@ -942,7 +943,23 @@ assert.equal(formatScanWhen("2026-11-11T20:00:00Z", scanNow), "учора");
 assert.equal(formatScanWhen("2026-11-10T08:00:00Z", scanNow), "10.11");
 assert.equal(formatScanDay("2026-11-12T08:42:00Z"), "12.11.2026");
 assert.equal(queueTitle("receipt", "Сільпо", "telegram"), "Чек · Сільпо");
+assert.equal(queueTitle("receipt", "Сільпо", "telegram", "Олена"), "Чек · Сільпо · від Олена");
 assert.equal(queueTitle("voice", null, "web"), "Голос · Веб");
+
+const inboxRowBase = {
+  id: "s1",
+  channel: "telegram",
+  input_type: "receipt",
+  status: "pending",
+  mode: "add",
+  store_name: "Сільпо",
+  total: 100,
+  items: [],
+  created_at: "2026-11-12T08:00:00Z",
+} as const;
+assert.equal(toInboxScan({ ...inboxRowBase, channel_data: { senderName: "  Олена  " } }).senderName, "Олена");
+assert.equal(toInboxScan({ ...inboxRowBase, channel_data: null }).senderName, null);
+assert.equal(toInboxScan({ ...inboxRowBase, channel_data: { senderName: 42 } }).senderName, null);
 assert.equal(statusLabel("pending"), "Перевірити");
 assert.equal(formatScanUah(1284.5), "1 284,50 ₴");
 assert.equal(formatAmount(93.8), "93,80");
@@ -1037,6 +1054,7 @@ if (voiceUpdate.kind === "message") {
   assert.equal(voiceUpdate.message.chatId, "42");
   assert.equal(voiceUpdate.message.chatType, "private");
   assert.equal(voiceUpdate.message.chatTitle, "Оля");
+  assert.equal(voiceUpdate.message.senderName, "Оля");
   assert.equal(voiceUpdate.message.media?.fileId, "voice-1");
 }
 const groupUpdate = readTelegramUpdate({
@@ -1339,6 +1357,19 @@ const filledHome = buildHomeModel({
           { raw: "сир", productId: null, name: "Сир", category: "молочне", unit: "г", quantity: 300, uncertain: true, price: 90 },
         ],
         createdAt: "2026-11-12T08:42:00Z",
+        senderName: "Олена",
+      },
+      {
+        id: "scan2",
+        channel: "telegram",
+        inputType: "receipt",
+        status: "confirmed",
+        mode: "add",
+        storeName: "Сільпо",
+        total: 500,
+        items: [{ raw: "молоко", productId: null, name: "Молоко", category: "молочне", unit: "мл", quantity: 1, uncertain: false, price: 42 }],
+        createdAt: "2026-11-11T10:00:00Z",
+        senderName: "Іван",
       },
     ],
     now: new Date("2026-11-12T12:00:00Z"),
@@ -1371,6 +1402,9 @@ assert.equal(filledHome.pantry.alerts[1].note, "Мало · уже в списк
 // Скани: черга містить pending скан
 assert.equal(filledHome.pendingScan?.title, "Чек із Сільпо чекає перевірки");
 assert.equal(filledHome.pendingScan?.uncertainCount, 1);
+assert.equal(filledHome.recentScans[0]?.title, `Чек · Сільпо · від Олена · ${formatUah(1284.5)}`);
+assert.equal(filledHome.recentScans[1]?.title, `Чек · Сільпо · від Іван · ${formatUah(500)}`);
+assert.notEqual(filledHome.recentScans[0]?.title, filledHome.recentScans[1]?.title);
 
 console.log("ok: скан — розпізнавання, черга, наслідки");
 console.log("ok: огляд — темп, тижні, дати, модель");

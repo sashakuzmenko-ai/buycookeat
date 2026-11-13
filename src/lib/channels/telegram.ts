@@ -116,6 +116,18 @@ function telegramChatType(raw: string): TelegramChatType {
   return "other";
 }
 
+export function telegramSenderName(from: Json): string | null {
+  const parts = [textOf(from.first_name), textOf(from.last_name)].filter(Boolean);
+  let name: string | null = null;
+  if (parts.length) name = parts.join(" ");
+  else {
+    const username = textOf(from.username).replace(/^@/, "");
+    if (username) name = `@${username}`;
+  }
+  if (!name) return null;
+  return name.slice(0, 40);
+}
+
 function telegramChatTitle(chat: Json, from: Json): string | null {
   const type = textOf(chat.type);
   if (type === "private") {
@@ -175,6 +187,7 @@ function inboundBase(message: Json, from: Json, chat: Json) {
   if (!senderId || !chatId) return null;
   return {
     senderId,
+    senderName: telegramSenderName(from),
     chatId,
     chatType: telegramChatType(textOf(chat.type)),
     chatTitle: telegramChatTitle(chat, from),

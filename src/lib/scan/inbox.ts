@@ -16,6 +16,7 @@ export type InboxScan = {
   total: number | null;
   items: ScanItem[];
   createdAt: string;
+  senderName: string | null;
 };
 
 export type InboxFail = { ok: false; error: string };
@@ -42,7 +43,17 @@ type ScanRow = {
   total: number | string | null;
   items: unknown;
   created_at: string;
+  channel_data?: unknown;
 };
+
+function senderNameFromChannelData(channelData: unknown): string | null {
+  if (!channelData || typeof channelData !== "object") return null;
+  const raw = (channelData as Record<string, unknown>).senderName;
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  return trimmed.slice(0, 40);
+}
 
 function fail(error: { message: string } | null, fallback: string): InboxFail | null {
   if (!error) return null;
@@ -66,6 +77,7 @@ export function toInboxScan(row: ScanRow): InboxScan {
     total: asTotal(row.total),
     items: parseScanItems(row.items),
     createdAt: row.created_at,
+    senderName: senderNameFromChannelData(row.channel_data ?? null),
   };
 }
 
@@ -102,7 +114,7 @@ export async function listIncomingScans(
 ): Promise<{ ok: true; scans: InboxScan[] } | InboxFail> {
   let query = supabase
     .from("incoming_scans")
-    .select("id, channel, input_type, status, mode, store_name, total, items, created_at")
+    .select("id, channel, input_type, status, mode, store_name, total, items, created_at, channel_data")
     .order("created_at", { ascending: false })
     .limit(40);
   if (householdId) query = query.eq("household_id", householdId);

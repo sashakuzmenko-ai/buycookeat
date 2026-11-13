@@ -173,6 +173,7 @@ async function onScan(ctx: Turn, message: Extract<ReturnType<ScanChannel["readUp
       channelData: {
         chatId: message.chatId,
         telegramUserId: message.senderId,
+        senderName: message.senderName,
         source: result.source,
         model: result.model,
         costUsd: result.costUsd,
