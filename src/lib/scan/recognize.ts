@@ -11,6 +11,8 @@ export type RecognizeInput = {
   mode: ScanMode;
   images: string[];
   audioBase64: string | null;
+  audioFormat?: "wav" | "mp3" | "ogg" | "aac" | "flac";
+  videos?: readonly string[];
   text: string;
   note: string;
   products: readonly CatalogProduct[];
@@ -142,7 +144,8 @@ export function normalizeScanResult(
 }
 
 function userText(input: RecognizeInput): string {
-  const materials = `${input.images.length} зображень${input.audioBase64 ? ", аудіозапис" : ", аудіо немає"}`;
+  const videoNote = input.videos?.length ? `, ${input.videos.length} відео` : "";
+  const materials = `${input.images.length} зображень${input.audioBase64 ? ", аудіозапис" : ", аудіо немає"}${videoNote}`;
   const lines = [`Матеріали: ${materials}.`];
   if (input.text.trim()) lines.push(`Текст повідомлення: ${input.text.trim()}`);
   if (input.note.trim()) lines.push(`Примітка користувача: ${input.note.trim()}`);
@@ -173,15 +176,19 @@ function parseModelJson(text: string, finishReason: string | undefined): unknown
 export async function recognize(input: RecognizeInput): Promise<ScanResult> {
   if (!input.apiKey) throw new RecognizeError(503, "Не задано OPENROUTER_API_KEY — розпізнавання недоступне");
   const images = input.images.slice(0, SCAN_LIMITS.maxImages);
+  const videos = (input.videos ?? []).slice(0, 1);
   const text = input.text.trim();
   const note = input.note.trim();
-  if (images.length === 0 && !input.audioBase64 && !text && !note) {
+  if (images.length === 0 && videos.length === 0 && !input.audioBase64 && !text && !note) {
     throw new RecognizeError(400, "Додайте фото, відео, голос або текст");
   }
 
   const model = input.model || process.env.OPENROUTER_MODEL || "google/gemini-3.8-flash";
   const content: unknown[] = [];
-  if (input.audioBase64) content.push({ type: "input_audio", input_audio: { data: input.audioBase64, format: "wav" } });
+  if (input.audioBase64) {
+    content.push({ type: "input_audio", input_audio: { data: input.audioBase64, format: input.audioFormat ?? "wav" } });
+  }
+  for (const url of videos) content.push({ type: "video_url", video_url: { url } });
   for (const url of images) content.push({ type: "image_url", image_url: { url } });
   content.push({ type: "text", text: userText({ ...input, images, text, note }) });
 

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getContext } from "@/lib/context";
 import { parseRestrictions, stepPortionFactor } from "@/lib/family";
+import { createLinkCode, pendingExternalId } from "@/lib/channels/bind";
 
 const str = (fd: FormData, key: string) => String(fd.get(key) ?? "").trim();
 const num = (fd: FormData, key: string) => {
@@ -236,4 +237,48 @@ export async function deleteEquipment(formData: FormData) {
   if (error) fail("/settings", error.message);
   revalidatePath("/settings");
   revalidatePath("/recipes");
+}
+
+export async function createTelegramLink() {
+  const { supabase, householdId, user } = await getContext();
+  const { data: existing, error: readError } = await supabase
+    .from("channel_bindings")
+    .select("id, linked_at")
+    .eq("household_id", householdId)
+    .eq("user_id", user.id)
+    .eq("channel", "telegram");
+  if (readError) fail("/settings", readError.message);
+  if ((existing ?? []).some((row) => row.linked_at)) {
+    revalidatePath("/settings");
+    return;
+  }
+  const { code, expiresAt } = createLinkCode();
+  const { error } = await supabase.from("channel_bindings").upsert(
+    {
+      household_id: householdId,
+      user_id: user.id,
+      channel: "telegram",
+      external_id: pendingExternalId(user.id),
+      link_code: code,
+      link_code_expires_at: expiresAt,
+      linked_at: null,
+    },
+    { onConflict: "channel,external_id" },
+  );
+  if (error) fail("/settings", error.message);
+  revalidatePath("/settings");
+  revalidatePath("/scan");
+}
+
+export async function unlinkTelegram() {
+  const { supabase, householdId, user } = await getContext();
+  const { error } = await supabase
+    .from("channel_bindings")
+    .delete()
+    .eq("household_id", householdId)
+    .eq("user_id", user.id)
+    .eq("channel", "telegram");
+  if (error) fail("/settings", error.message);
+  revalidatePath("/settings");
+  revalidatePath("/scan");
 }

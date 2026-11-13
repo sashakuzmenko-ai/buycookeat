@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getContext } from "@/lib/context";
 import { parseWeekParam, weekDays } from "@/lib/dates";
-import { buildShoppingList, type PlanLine, type ProductInfo } from "@/lib/shopping";
+import { buildShoppingList, manualShoppingRow, type PlanLine, type ProductInfo } from "@/lib/shopping";
 
 const str = (fd: FormData, key: string) => {
   const val = fd.get(key);
@@ -148,11 +148,8 @@ export async function addShoppingItem(formData: FormData) {
   if (!title) fail(path, "Вкажіть, що купити");
 
   const { error } = await supabase.from("shopping_list_items").insert({
-    household_id: householdId,
-    week_start: week,
-    title,
+    ...manualShoppingRow({ householdId, weekStart: week, title }),
     store_id: uuidOrNull(str(formData, "store_id")),
-    source: "manual",
   });
   if (error) fail(path, error.message);
   revalidatePath("/shopping");

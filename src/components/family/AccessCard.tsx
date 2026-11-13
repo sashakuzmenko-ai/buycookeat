@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui";
+import { TelegramLink, type TelegramLinkState } from "./TelegramLink";
 
 export interface HouseholdUserInfo {
   userId: string;
@@ -12,9 +13,11 @@ export interface HouseholdUserInfo {
 
 export interface AccessCardProps {
   users: HouseholdUserInfo[];
+  telegram: TelegramLinkState;
+  linkedUserIds: readonly string[];
 }
 
-export function AccessCard({ users }: AccessCardProps) {
+export function AccessCard({ users, telegram, linkedUserIds }: AccessCardProps) {
   const [copied, setCopied] = useState(false);
 
   const handleInvite = async () => {
@@ -60,7 +63,7 @@ export function AccessCard({ users }: AccessCardProps) {
                   <div className="text-[12px] text-ink-2">{roleDesc}</div>
                 </div>
                 <span className="shrink-0 rounded-full bg-soft px-2.5 py-1 text-[11px] font-medium text-ink-2">
-                  Telegram пізніше
+                  {linkedUserIds.includes(u.userId) ? "Telegram підключено" : "Telegram не підключено"}
                 </span>
               </div>
             );
@@ -70,9 +73,7 @@ export function AccessCard({ users }: AccessCardProps) {
         )}
       </div>
 
-      <div className="mt-2 rounded-12 bg-soft p-3 text-[13px] leading-relaxed text-ink-2">
-        <span className="font-semibold text-ink">Telegram-бот:</span> Telegram-бот буде підключено пізніше.
-      </div>
+      <TelegramLink linked={telegram.linked} code={telegram.code} expiresLabel={telegram.expiresLabel} botUrl={telegram.botUrl} />
 
       <div className="mt-2">
         <Button

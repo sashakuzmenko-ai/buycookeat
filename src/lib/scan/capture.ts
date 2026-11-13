@@ -2,6 +2,7 @@
 // Без браузера, HTTP і каналу — тим самим користується і перевірка в check-logic.
 
 import type { ScanInputType } from "../db-types.ts";
+import type { ScanMode } from "../scan-types.ts";
 
 export type CaptureKind = ScanInputType | "file";
 
@@ -23,6 +24,11 @@ const ALLOW: readonly (readonly [CaptureKind, boolean, boolean, boolean])[] = [
   ["screenshot", true, false, false],
   ["text", false, false, false],
 ];
+
+/** Відео полиці замінює залишки; решта вводів — покупка, яку додають до складу. */
+export function defaultScanMode(type: ScanInputType): ScanMode {
+  return type === "video" ? "set" : "add";
+}
 
 export function mediaAllow(kind: CaptureKind): MediaAllow {
   const row = ALLOW.find(([id]) => id === kind) ?? ALLOW[0];
