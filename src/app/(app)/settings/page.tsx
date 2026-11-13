@@ -61,6 +61,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
 
   const monthlyBudget =
     household.monthly_budget != null ? Number(household.monthly_budget) : null;
+  const paceAlertEnabled = Boolean(household.pace_alert_enabled);
 
   const bindings = bindingsRes.data ?? [];
   const linkedRows = bindings.filter((row) => row.linked_at);
@@ -99,6 +100,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
         family={family}
         portions={portions}
         monthlyBudget={monthlyBudget}
+        paceAlertEnabled={paceAlertEnabled}
         equipment={equipment}
         users={users}
         telegram={{

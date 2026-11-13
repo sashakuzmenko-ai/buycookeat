@@ -2,14 +2,18 @@
 
 import { useState, useTransition } from "react";
 import { dailyBudgetUah } from "@/lib/family";
-import { updateMonthlyBudget } from "@/app/(app)/settings/actions";
+import { togglePaceAlert, updateMonthlyBudget } from "@/app/(app)/settings/actions";
 import { Button } from "@/components/ui";
 
 export interface BudgetCardProps {
   initialMonthlyBudget: number | null;
+  initialPaceAlertEnabled?: boolean;
 }
 
-export function BudgetCard({ initialMonthlyBudget }: BudgetCardProps) {
+export function BudgetCard({
+  initialMonthlyBudget,
+  initialPaceAlertEnabled = false,
+}: BudgetCardProps) {
   const [isPending, startTransition] = useTransition();
   const [budgetInput, setBudgetInput] = useState(
     initialMonthlyBudget != null && initialMonthlyBudget > 0
@@ -17,6 +21,9 @@ export function BudgetCard({ initialMonthlyBudget }: BudgetCardProps) {
       : ""
   );
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  const [paceAlertEnabled, setPaceAlertEnabled] = useState(initialPaceAlertEnabled);
+  const [isAlertPending, startAlertTransition] = useTransition();
 
   // Парсинг для живого розрахунку щоденного бюджету
   const numericVal = parseFloat(budgetInput.replace(/\s/g, "").replace(",", "."));
@@ -27,6 +34,15 @@ export function BudgetCard({ initialMonthlyBudget }: BudgetCardProps) {
       await updateMonthlyBudget(formData);
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
+    });
+  };
+
+  const handleTogglePaceAlert = (nextChecked: boolean) => {
+    setPaceAlertEnabled(nextChecked);
+    startAlertTransition(async () => {
+      const fd = new FormData();
+      fd.set("enabled", nextChecked ? "true" : "false");
+      await togglePaceAlert(fd);
     });
   };
 
@@ -83,6 +99,24 @@ export function BudgetCard({ initialMonthlyBudget }: BudgetCardProps) {
           </div>
         )}
       </form>
+
+      <div className="flex flex-col gap-1 border-t border-soft pt-1">
+        <label className="flex min-h-[44px] cursor-pointer items-center gap-2.5 text-[14px] text-ink select-none">
+          <input
+            type="checkbox"
+            name="pace_alert_enabled"
+            checked={paceAlertEnabled}
+            disabled={isAlertPending}
+            onChange={(e) => handleTogglePaceAlert(e.target.checked)}
+            className="h-5 w-5 rounded m-0 accent-family cursor-pointer"
+            style={{ accentColor: "var(--color-family, #7A3E78)" }}
+          />
+          <span>Попереджати в Telegram, коли темп вищий за план</span>
+        </label>
+        <div className="text-[13px] leading-relaxed text-ink-2 pl-[30px]">
+          Повідомлення надсилається в прив’язані Telegram-чати і не частіше разу на день.
+        </div>
+      </div>
     </section>
   );
 }

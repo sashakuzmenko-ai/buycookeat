@@ -678,3 +678,40 @@ export function chartWeekLabel(start: string, today: string): string {
   return isCurrentWeek ? `${range} · триває` : range;
 }
 
+export interface PaceAlertDecisionInput {
+  enabled: boolean;
+  budget: number | null;
+  spent: number;
+  elapsedDays: number;
+  spanDays: number;
+  sentOn: string | null;
+  today: string;
+}
+
+export type PaceAlertDecision = { send: false } | { send: true; text: string };
+
+/**
+ * Чисте рішення про надсилання попередження в Telegram про темп витрат.
+ * Надсилається, коли увімкнено, бюджет задано й додатний, темп вищий за план
+ * (spentShare > elapsedShare) і сьогодні ще не надсилали (sentOn !== today).
+ */
+export function paceAlertDecision(input: PaceAlertDecisionInput): PaceAlertDecision {
+  if (!input.enabled) return { send: false };
+  if (input.budget === null || !(input.budget > 0)) return { send: false };
+  if (input.sentOn === input.today) return { send: false };
+
+  const p = pace(input.spent, input.budget, input.elapsedDays, input.spanDays);
+  if (!p || !(p.spentShare > p.elapsedShare)) return { send: false };
+
+  const diff = paceDifference(input.spent, input.budget, input.elapsedDays, input.spanDays);
+  const diffNote = paceDifferenceNote(diff);
+  const notePart = diffNote ? ` (${diffNote})` : "";
+  const remaining = budgetRemaining(input.spent, input.budget);
+  const remainingPart = remaining !== null ? `, лишилося ${formatUah(remaining)}` : "";
+
+  const text = `Попередження: темп витрат вищий за план${notePart}. Витрачено ${formatUah(input.spent)} з бюджету ${formatUah(input.budget)}, минуло ${formatShare(p.elapsedShare)} місяця${remainingPart}.`;
+
+  return { send: true, text };
+}
+
+
