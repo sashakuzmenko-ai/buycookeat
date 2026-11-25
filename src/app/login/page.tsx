@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Logo } from "@/components/Logo";
 import { Notice } from "@/components/Notice";
@@ -42,6 +43,11 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
               Створити обліковий запис
             </Button>
           </div>
+          <p className="text-center text-sm">
+            <Link href="/forgot-password" className="font-semibold text-brand hover:underline">
+              Забули пароль?
+            </Link>
+          </p>
         </form>
       </Card>
     </main>
