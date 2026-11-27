@@ -5,7 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getContext } from "@/lib/context";
 import { rejectIncomingScan, updateIncomingScan } from "@/lib/scan/inbox";
 import { commitPendingScan, resolveScanItems } from "@/lib/scan/commit";
-import { cleanCategory, cleanUnit, roundScanQty } from "@/lib/scan/products";
+import { cleanCategory, cleanUnit, normalizePackageFields, parseExpiryDate, roundScanQty } from "@/lib/scan/products";
 import { parseScanItems } from "@/lib/scan/present";
 import type { ScanItem, ScanMode } from "@/lib/scan-types";
 import { maybeSendPaceAlert } from "@/lib/channels/notify";
@@ -50,10 +50,23 @@ export async function saveScanMode(scanId: string, mode: ScanMode): Promise<Scan
   return { error: null };
 }
 
+export type ClarifyScanItemInput = {
+  productId: string | null;
+  name: string;
+  category: string;
+  unit: string;
+  quantity: number;
+  label?: string | null;
+  brand?: string | null;
+  packageAmount?: number | null;
+  packageUnit?: string | null;
+  expiresAt?: string | null;
+};
+
 export async function clarifyScanItem(
   scanId: string,
   index: number,
-  input: { productId: string | null; name: string; category: string; unit: string; quantity: number },
+  input: ClarifyScanItemInput,
 ): Promise<ScanActionResult> {
   const { supabase, householdId } = await getContext();
   const loaded = await loadPending(supabase, scanId, householdId);
@@ -61,6 +74,45 @@ export async function clarifyScanItem(
   const items = loaded.items ?? [];
   if (!Number.isInteger(index) || index < 0 || index >= items.length) return { error: "Позицію не знайдено" };
   if (!(input.quantity > 0) || !Number.isFinite(input.quantity)) return { error: "Вкажіть кількість більше нуля" };
+  if (!input.productId && !input.name.trim()) return { error: "Оберіть продукт або вкажіть назву" };
+
+  let expiresAt: string | null = items[index].expiresAt;
+  if (input.expiresAt !== undefined) {
+    const rawExpiry = String(input.expiresAt ?? "").trim();
+    if (!rawExpiry) {
+      expiresAt = null;
+    } else {
+      const parsed = parseExpiryDate(rawExpiry);
+      if (!parsed) {
+        return { error: "Некоректна дата придатності" };
+      }
+      expiresAt = parsed;
+    }
+  }
+
+  let packageAmount: number | null = items[index].packageAmount;
+  let packageUnit: "г" | "мл" | null = items[index].packageUnit;
+  if (input.packageAmount !== undefined || input.packageUnit !== undefined) {
+    const rawAmt = input.packageAmount;
+    if (rawAmt === null || rawAmt === undefined || String(rawAmt).trim() === "") {
+      packageAmount = null;
+      packageUnit = null;
+    } else {
+      const pkg = normalizePackageFields(rawAmt, input.packageUnit);
+      if (pkg.packageAmount === null || pkg.packageUnit === null) {
+        return { error: "Вкажіть коректну вагу або обсяг упаковки (г або мл)" };
+      }
+      packageAmount = pkg.packageAmount;
+      packageUnit = pkg.packageUnit;
+    }
+  }
+
+  const label = input.label !== undefined
+    ? String(input.label ?? "").trim().slice(0, 120)
+    : items[index].label;
+  const brand = input.brand !== undefined
+    ? String(input.brand ?? "").trim().slice(0, 80)
+    : items[index].brand;
 
   const draft: ScanItem = {
     ...items[index],
@@ -70,6 +122,11 @@ export async function clarifyScanItem(
     unit: cleanUnit(input.unit),
     quantity: roundScanQty(input.quantity),
     uncertain: false,
+    label,
+    brand,
+    packageAmount,
+    packageUnit,
+    expiresAt,
   };
   const resolved = await resolveScanItems(supabase, householdId, [draft]);
   if ("error" in resolved) return { error: resolved.error ?? "Не вдалося зберегти позицію" };
