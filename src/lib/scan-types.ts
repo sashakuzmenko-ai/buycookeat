@@ -13,6 +13,11 @@ export type ScanItem = {
   quantity: number; // в одиниці продукту
   uncertain: boolean;
   price: number | null; // ціна позиції в гривнях, якщо її видно
+  label: string; // повна назва з етикетки або чека
+  brand: string; // виробник або бренд
+  packageAmount: number | null; // вага або обсяг однієї упаковки
+  packageUnit: "г" | "мл" | null;
+  expiresAt: string | null; // YYYY-MM-DD
 };
 
 export type ScanSource = "voice" | "images" | "both" | "text" | "none";

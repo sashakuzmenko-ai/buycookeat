@@ -86,7 +86,7 @@ import {
 } from "../src/lib/family.ts";
 import { MAIN_NAV_ITEMS, MORE_NAV_ITEMS, isRouteActive, isMoreActive } from "../src/components/shell/nav-items.ts";
 import { captureBlockReason, defaultScanMode, resolveCaptureType } from "../src/lib/scan/capture.ts";
-import { chooseProduct } from "../src/lib/scan/products.ts";
+import { chooseProduct, parseExpiryDate } from "../src/lib/scan/products.ts";
 import {
   SCAN_INPUTS,
   financeEffectLabel,
@@ -95,6 +95,7 @@ import {
   formatScanDay,
   formatScanWhen,
   formatUah as formatScanUah,
+  formatItemDetail,
   parseScanItems,
   queueTitle,
   shoppingEffectLabel,
@@ -994,6 +995,7 @@ console.log(`ok: логіка і стартові дані (${SEED_PRODUCTS.leng
 assert.equal(SCAN_INPUTS.length, 5);
 assert.match(buildScanPrompt("add", []), /скріншот/i);
 assert.match(buildScanPrompt("add", []), /купив сир і сметану/);
+assert.match(buildScanPrompt("add", []), /різні види не зливай/i);
 
 const scanCatalog = [{ id: "p1", name: "Сир", unit: "г" }];
 const recognized = normalizeScanResult(
@@ -1021,6 +1023,82 @@ assert.equal(recognized.items[1].name, "Сметана");
 assert.equal(recognized.items[1].unit, "шт");
 assert.equal(recognized.items[1].category, "інше");
 assert.equal(recognized.items[1].uncertain, true);
+
+const breadCatalog = [{ id: "h1", name: "Хліб", unit: "шт" }];
+const bunScan = normalizeScanResult(
+  {
+    source: "images",
+    store: "",
+    total: 0,
+    items: [
+      {
+        raw: 'Булочка "До сніданку", 200 г',
+        product_number: 0,
+        name: "Булочка здобна",
+        category: "хліб та випічка",
+        unit: "шт",
+        quantity: 1,
+        uncertain: false,
+        price: 0,
+        label: 'Булочка "До сніданку", 200 г, OLD BAKER',
+        brand: "OLD BAKER",
+        package_amount: 200,
+        package_unit: "г",
+        expires_at: "28.11.2026",
+      },
+    ],
+  },
+  breadCatalog,
+  { model: "test", costUsd: null },
+);
+assert.equal(bunScan.items.length, 1);
+const bun = bunScan.items[0];
+assert.equal(bun.productId, null);
+assert.notEqual(bun.name, "Хліб");
+assert.match(bun.name, /булочка/i);
+assert.equal(bun.label, 'Булочка "До сніданку", 200 г, OLD BAKER');
+assert.equal(bun.brand, "OLD BAKER");
+assert.equal(bun.packageAmount, 200);
+assert.equal(bun.packageUnit, "г");
+assert.equal(bun.expiresAt, "2026-11-28");
+
+const sparseScan = normalizeScanResult(
+  {
+    source: "images",
+    store: "",
+    total: 0,
+    items: [
+      {
+        raw: "Позиція",
+        product_number: 0,
+        name: "Йогурт",
+        category: "молочне",
+        unit: "шт",
+        quantity: 1,
+        uncertain: true,
+        price: 0,
+        label: "",
+        brand: "",
+        package_amount: 0,
+        package_unit: "",
+        expires_at: "не дата",
+      },
+    ],
+  },
+  [],
+  { model: "test", costUsd: null },
+);
+assert.equal(sparseScan.items[0].label, "");
+assert.equal(sparseScan.items[0].brand, "");
+assert.equal(sparseScan.items[0].packageAmount, null);
+assert.equal(sparseScan.items[0].packageUnit, null);
+assert.equal(sparseScan.items[0].expiresAt, null);
+
+assert.equal(parseExpiryDate("2026-11-28"), "2026-11-28");
+assert.equal(parseExpiryDate("28.11.2026"), "2026-11-28");
+assert.equal(parseExpiryDate("28/11/2026"), "2026-11-28");
+assert.equal(parseExpiryDate("31.02.2026"), null);
+assert.equal(parseExpiryDate(""), null);
 
 const recipeCatalog = [
   { id: "rp1", name: "Молоко", unit: "мл" },
@@ -1125,7 +1203,45 @@ assert.equal(financeEffectLabel("set", 10), "без чека");
 assert.equal(shoppingEffectLabel("add", 3), "перерахунок зі складу");
 assert.equal(shoppingEffectLabel("set", 0), "без змін");
 assert.equal(financeMonthLabel("2026-11-12T10:00:00Z"), "Фінанси · листопад");
-assert.equal(parseScanItems([{ raw: "СИР", productId: "p1", name: "Сир", category: "молочне", unit: "г", quantity: 200, uncertain: false, price: 80 }])[0]?.productId, "p1");
+const legacyItem = parseScanItems([
+  { raw: "СИР", productId: "p1", name: "Сир", category: "молочне", unit: "г", quantity: 200, uncertain: false, price: 80 },
+])[0];
+assert.equal(legacyItem?.productId, "p1");
+assert.equal(legacyItem?.label, "");
+assert.equal(legacyItem?.brand, "");
+assert.equal(legacyItem?.packageAmount, null);
+assert.equal(legacyItem?.expiresAt, null);
+
+const richItem = parseScanItems([
+  {
+    raw: "Булочка",
+    productId: null,
+    name: "Булочка здобна",
+    category: "хліб та випічка",
+    unit: "шт",
+    quantity: 1,
+    uncertain: false,
+    price: null,
+    label: 'Булочка "До сніданку"',
+    brand: "OLD BAKER",
+    packageAmount: 200,
+    packageUnit: "г",
+    expiresAt: "2026-11-28",
+  },
+])[0];
+assert.equal(richItem?.brand, "OLD BAKER");
+assert.equal(richItem?.expiresAt, "2026-11-28");
+
+assert.equal(
+  formatItemDetail({
+    packageAmount: 200,
+    packageUnit: "г",
+    brand: "OLD BAKER",
+    expiresAt: "2026-11-28",
+  }),
+  "200 г · OLD BAKER · вжити до 28.11.2026",
+);
+assert.equal(formatItemDetail({ packageAmount: null, packageUnit: null, brand: "OLD BAKER", expiresAt: null }), "OLD BAKER");
 assert.equal(parseScanItems([{ quantity: 0, name: "Порожньо" }]).length, 0);
 
 assert.equal(resolveCaptureType("screenshot", { images: 1, audio: false, fromVideo: false, text: "", note: "" }), "screenshot");
