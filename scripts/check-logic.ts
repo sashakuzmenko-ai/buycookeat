@@ -1416,11 +1416,18 @@ if (replyUpdate.kind === "message") assert.equal(replyUpdate.message.repliesToBo
 const buttons = scanButtons(scanId, "https://cook.example/scan?id=" + scanId);
 assert.deepEqual(buttons.flat().map((button) => button.label), ["Записати", "Виправити", "У покупки", "Уже купили"]);
 assert.equal(buttons[0][1]?.url?.includes("/scan?id="), true);
+const emptyLabelFields = {
+  label: "",
+  brand: "",
+  packageAmount: null as number | null,
+  packageUnit: null as "г" | "мл" | null,
+  expiresAt: null as string | null,
+};
 const replyText = recognitionText({
   inputType: "receipt",
   items: [
-    { raw: "МОЛОКО", productId: null, name: "Молоко", category: "молочне", unit: "мл", quantity: 900, uncertain: false, price: 40 },
-    { raw: "ФIЛЕ", productId: null, name: "Філе", category: "інше", unit: "г", quantity: 600, uncertain: true, price: null },
+    { raw: "МОЛОКО", productId: null, name: "Молоко", category: "молочне", unit: "мл", quantity: 900, uncertain: false, price: 40, ...emptyLabelFields },
+    { raw: "ФIЛЕ", productId: null, name: "Філе", category: "інше", unit: "г", quantity: 600, uncertain: true, price: null, ...emptyLabelFields },
   ],
   store: "Сільпо",
   total: 1284.5,
@@ -1431,6 +1438,94 @@ assert.match(replyText, /Сільпо/);
 assert.match(replyText, /1 284,50 ₴/);
 assert.match(replyText, /під питанням/);
 assert.match(replyText, /ФIЛЕ → Філе/);
+assert.match(replyText, /термін не вказано/);
+
+// recognitionText: вага, виробник, термін; без терміну; обрізання clipMessage
+const withExpiryText = recognitionText({
+  inputType: "screenshot",
+  items: [
+    {
+      raw: "Булочка",
+      productId: null,
+      name: "Булочка здобна",
+      category: "хліб та випічка",
+      unit: "шт",
+      quantity: 1,
+      uncertain: false,
+      price: null,
+      label: 'Булочка "До сніданку"',
+      brand: "OLD BAKER",
+      packageAmount: 200,
+      packageUnit: "г",
+      expiresAt: "2026-11-28",
+    },
+  ],
+  store: "",
+  total: 0,
+  mode: "add",
+  now: new Date("2026-11-12T10:00:00Z"),
+});
+assert.match(withExpiryText, /Булочка "До сніданку"/);
+assert.match(withExpiryText, /200 г/);
+assert.match(withExpiryText, /OLD BAKER/);
+assert.match(withExpiryText, /вжити до 28\.11\.2026/);
+assert.doesNotMatch(withExpiryText, /термін не вказано/);
+
+const withoutExpiryText = recognitionText({
+  inputType: "screenshot",
+  items: [
+    {
+      raw: "Молоко",
+      productId: null,
+      name: "Молоко",
+      category: "молочне",
+      unit: "мл",
+      quantity: 1,
+      uncertain: false,
+      price: null,
+      label: "Молоко 2,5%",
+      brand: "Ферма",
+      packageAmount: 900,
+      packageUnit: "мл",
+      expiresAt: null,
+    },
+  ],
+  store: "",
+  total: 0,
+  mode: "add",
+  now: new Date("2026-11-12T10:00:00Z"),
+});
+assert.match(withoutExpiryText, /Молоко 2,5%/);
+assert.match(withoutExpiryText, /900 мл/);
+assert.match(withoutExpiryText, /Ферма/);
+assert.match(withoutExpiryText, /термін не вказано/);
+assert.doesNotMatch(withoutExpiryText, /вжити до/);
+
+const longRecognition = recognitionText({
+  inputType: "receipt",
+  items: Array.from({ length: 12 }, (_, index) => ({
+    raw: `RAW${index}`,
+    productId: null,
+    name: `Продукт ${index}`,
+    category: "інше",
+    unit: "шт" as const,
+    quantity: 1,
+    uncertain: false,
+    price: null,
+    label: `Дуже довга назва з етикетки номер ${index} `.repeat(40).trim(),
+    brand: `Виробник ${index} `.repeat(20).trim(),
+    packageAmount: 500,
+    packageUnit: "г" as const,
+    expiresAt: "2026-12-01",
+  })),
+  store: "Сільпо з дуже довгою назвою магазину для тесту обрізання",
+  total: 9999.99,
+  mode: "add",
+  now: new Date("2026-11-12T10:00:00Z"),
+});
+assert.ok(longRecognition.length <= 4000);
+assert.match(longRecognition, /…$/);
+
 assert.match(wroteSummary("add", 18, 1284.5, new Date("2026-11-12T10:00:00Z")), /18 позицій/);
 assert.match(wroteSummary("add", 18, 1284.5, new Date("2026-11-12T10:00:00Z")), /листопада/);
 assert.match(dinnerText([]), /немає/);
