@@ -473,12 +473,17 @@ const functions = (
   )
 ).rows;
 const unsafe = [];
+const writes = [/\bdelete\s+from\b/i, /\bupdate\s+[\w.]+(\s+\w+)?\s+set\b/i];
 for (const { proname, prosrc } of functions) {
   const body = String(prosrc).replace(/--[^\n]*/g, " ");
-  for (const [statement] of body.matchAll(/\b(?:delete\s+from|update\s+[\w.]+(?:\s+(?:as\s+)?\w+)?\s+set)\b[^;]*;/gi)) {
-    if (!/\bwhere\b/i.test(statement)) unsafe.push(`${proname}: без WHERE`);
+  // кожен оператор закінчується крапкою з комою; WHERE має стояти після DELETE чи UPDATE
+  for (const part of body.split(";")) {
+    for (const pattern of writes) {
+      const found = pattern.exec(part);
+      if (found && !/\bwhere\b/i.test(part.slice(found.index))) unsafe.push(proname + ": без WHERE");
+    }
   }
-  if (/\bcreate\s+(?:temp|temporary)\b/i.test(body)) unsafe.push(`${proname}: тимчасова таблиця`);
+  if (/\bcreate\s+(temp|temporary)\b/i.test(body)) unsafe.push(proname + ": тимчасова таблиця");
 }
 const safeSqlOk = unsafe.length === 0;
 
@@ -542,8 +547,9 @@ await adjustProduct(milkId, 1);
 const addedZones = await zonesOf();
 const addZoneOk = addedZones.length === 2 && addedZones.every((zone) => zone === "fridge");
 
+const safeSqlText = safeSqlOk ? "OK" : "FAIL (" + unsafe.join("; ") + ")";
 console.log(
-  `Безпека SQL ${safeSqlOk ? "OK" : `FAIL (${unsafe.join("; ")})`}, веб і бот ${botSetOk ? "OK" : "FAIL"}, без назви ${noLabelOk ? "OK" : "FAIL"}, зона інвентаризації ${setZoneOk ? "OK" : "FAIL"}, зона надходження ${addZoneOk ? "OK" : "FAIL"}`,
+  `Безпека SQL ${safeSqlText}, веб і бот ${botSetOk ? "OK" : "FAIL"}, без назви ${noLabelOk ? "OK" : "FAIL"}, зона інвентаризації ${setZoneOk ? "OK" : "FAIL"}, зона надходження ${addZoneOk ? "OK" : "FAIL"}`,
 );
 
 const batchesOk =
@@ -570,8 +576,11 @@ const batchesOk =
   oldFormatOk &&
   secondBatchOk &&
   uniqueGone;
+const fefoText = fefoOrderOk
+  ? [fefo1, fefo2, fefo3, "порожньо"].join(" → ")
+  : "FAIL (" + [fefo1, fefo2, fefo3, fefo4].join(" | ") + ")";
 console.log(
-  `Партії: два скани ${twoAddsOk ? "OK" : "FAIL"}, злиття в скані ${mergeWithinScanOk ? "OK" : "FAIL"}, FEFO ${fefoOrderOk ? `${fefo1} → ${fefo2} → ${fefo3} → порожньо` : `FAIL (${fefo1} | ${fefo2} | ${fefo3} | ${fefo4})`}, перелив ${overflowOk ? "OK" : "FAIL"}, надлишок ${overshootOk ? "OK" : "FAIL"}`,
+  `Партії: два скани ${twoAddsOk ? "OK" : "FAIL"}, злиття в скані ${mergeWithinScanOk ? "OK" : "FAIL"}, FEFO ${fefoText}, перелив ${overflowOk ? "OK" : "FAIL"}, надлишок ${overshootOk ? "OK" : "FAIL"}`,
 );
 console.log(
   `Інвентаризація: сума ${setSumOk ? "OK" : "FAIL"}, без терміну 1/2/3 ${setKeepLateOk && setKeepBothOk && setExtraOk ? "OK" : "FAIL"}, частково ${setPartialOk ? "OK" : "FAIL"}, назва ${setPreferOk ? "OK" : "FAIL"}, без подвійного обліку ${setMixedOk ? "OK" : "FAIL"}, рух ${setKeepLateMoveOk ? "OK" : "FAIL"}`,
