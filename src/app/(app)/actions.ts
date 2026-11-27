@@ -6,6 +6,7 @@ import { getContext } from "@/lib/context";
 import { MEAL_TYPES, PRODUCT_CATEGORIES } from "@/lib/seed-data";
 import { autoFill, ingredientUsage, requiredEquipment, type PlanLine, type ProductInfo } from "@/lib/shopping";
 import { parseWeekParam, weekDays } from "@/lib/dates";
+import { stockTotals } from "@/lib/pantry";
 import { recipeReturnPath } from "@/lib/recipes";
 import {
   generateShopping as shoppingGenerateShopping,
@@ -99,11 +100,8 @@ export async function autoFillWeek(formData: FormData) {
   );
   const used = entries.data!.map((e) => e.recipe_id).filter(Boolean) as string[];
 
-  const stock = new Map<string, number>(
-    (pantryRes.data ?? []).map((item: { product_id: string; quantity: number | string }) => [
-      item.product_id,
-      Number(item.quantity) || 0,
-    ]),
+  const stock = stockTotals(
+    (pantryRes.data ?? []) as { product_id: string; quantity: number | string }[],
   );
 
   const products = new Map<string, ProductInfo>(
@@ -276,25 +274,6 @@ export async function stockBought(formData: FormData) {
 
 // ---------- Запаси ----------
 
-export async function setPantryItem(formData: FormData) {
-  const { supabase, householdId } = await getContext();
-  const productId = uuidOrNull(str(formData, "product_id"));
-  const quantity = num(formData, "quantity");
-  if (!productId) fail("/pantry", "Оберіть продукт");
-  if (!(quantity >= 0)) fail("/pantry", "Вкажіть кількість");
-  const result =
-    quantity === 0
-      ? await supabase.from("pantry_items").delete().eq("household_id", householdId).eq("product_id", productId)
-      : await supabase
-          .from("pantry_items")
-          .upsert(
-            { household_id: householdId, product_id: productId, quantity, updated_at: new Date().toISOString() },
-            { onConflict: "household_id,product_id" },
-          );
-  if (result.error) fail("/pantry", result.error.message);
-  revalidatePath("/pantry");
-}
-
 /** «Приготовано»: списує інгредієнти страви із запасів; зняття позначки повертає їх. */
 export async function setCooked(formData: FormData) {
   const { supabase, householdId, portions } = await getContext();
@@ -351,7 +330,8 @@ export async function setCooked(formData: FormData) {
           usage.map((u) => u.productId),
         );
     } else {
-      // повертаємо тільки продукти, які є в запасах, щоб не «створити» сіль чи олію
+      // повертаємо тільки продукти, які є в запасах, щоб не «створити» сіль чи олію.
+      // додатна дельта без терміну лягає в партію без дати — так і задумано
       const { data: tracked } = await supabase.from("pantry_items").select("product_id");
       const known = new Set((tracked ?? []).map((t) => t.product_id as string));
       const back = usage.filter((u) => known.has(u.productId));
@@ -468,83 +448,4 @@ export async function deleteRow(formData: FormData) {
     fail(path, error.code === "23503" ? "Не можна видалити: продукт використовується в рецептах" : error.message);
   }
   revalidatePath("/", "layout");
-}
-
-// ---------- Розпізнане (фото / відео / голос) → запаси ----------
-
-export type ScanApplyItem = {
-  productId: string | null;
-  name: string;
-  category: string;
-  unit: string;
-  quantity: number;
-};
-
-/** Записує підтверджені користувачем позиції: нові продукти створює, запаси додає або замінює. */
-export async function applyScan(mode: "add" | "set", items: ScanApplyItem[]): Promise<{ error: string } | void> {
-  const { supabase, householdId } = await getContext();
-  if (!Array.isArray(items) || items.length === 0) return { error: "Немає позицій для запису" };
-  if (items.length > 100) return { error: "Забагато позицій за один раз" };
-
-  const { data: existing, error: loadError } = await supabase.from("products").select("id, name");
-  if (loadError) return { error: loadError.message };
-  const byId = new Set(existing!.map((p) => p.id as string));
-  const byName = new Map(existing!.map((p) => [(p.name as string).trim().toLowerCase(), p.id as string]));
-
-  const totals = new Map<string, number>();
-  const add = (productId: string, quantity: number) => totals.set(productId, (totals.get(productId) ?? 0) + quantity);
-
-  for (const item of items) {
-    const quantity = Number(item.quantity);
-    if (!(quantity > 0) || !Number.isFinite(quantity)) return { error: "У кожної позиції має бути кількість більше нуля" };
-
-    if (item.productId && byId.has(item.productId)) {
-      add(item.productId, quantity);
-      continue;
-    }
-    const name = String(item.name ?? "").trim().slice(0, 80);
-    if (!name) return { error: "У нового продукту має бути назва" };
-    // така назва вже є (або щойно створена в цьому ж записі) — не дублюємо
-    let productId = byName.get(name.toLowerCase());
-    if (!productId) {
-      const { data, error } = await supabase
-        .from("products")
-        .insert({
-          household_id: householdId,
-          name,
-          category: (PRODUCT_CATEGORIES as readonly string[]).includes(item.category) ? item.category : "інше",
-          unit: ["г", "мл", "шт"].includes(item.unit) ? item.unit : "шт",
-        })
-        .select("id")
-        .single();
-      if (error) return { error: `Не вдалося створити «${name}»: ${error.message}` };
-      productId = data.id as string;
-      byName.set(name.toLowerCase(), productId);
-    }
-    add(productId, quantity);
-  }
-
-  if (mode === "add") {
-    const { error } = await supabase.rpc("adjust_pantry", {
-      p_household_id: householdId,
-      p_items: [...totals].map(([product_id, delta]) => ({ product_id, delta })),
-    });
-    if (error) return { error: error.message };
-  } else {
-    const { error } = await supabase.from("pantry_items").upsert(
-      [...totals].map(([product_id, quantity]) => ({
-        household_id: householdId,
-        product_id,
-        quantity,
-        updated_at: new Date().toISOString(),
-      })),
-      { onConflict: "household_id,product_id" },
-    );
-    if (error) return { error: error.message };
-  }
-
-  revalidatePath("/pantry");
-  revalidatePath("/products");
-  const verb = mode === "add" ? "Додано до запасів" : "Запаси оновлено";
-  redirect(`/pantry?info=${encodeURIComponent(`${verb}: ${totals.size} поз.`)}`);
 }

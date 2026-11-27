@@ -33,7 +33,9 @@ import {
   formatExpiryNote,
   isExpiringSoon,
   isLowStock,
+  nearestExpiry,
   pluralizePositions,
+  stockTotals,
   type StorageZone,
 } from "./pantry.ts";
 import {
@@ -363,39 +365,46 @@ export function buildHomeModel(input: BuildHomeModelInput): HomeModel {
         : "список покупок";
 
   // 6. Склад і сповіщення
-  const totalPantryCount = pantry.items.length;
+  // рахуємо продукти, а не партії — як lowCount і expiringCount нижче
+  const totalPantryCount = new Set(pantry.items.map((item) => item.product_id)).size;
   let lowCount = 0;
   let expiringCount = 0;
   const alertCandidates: HomeAlertView[] = [];
+  const totals = stockTotals(pantry.items);
+  const nearest = nearestExpiry(pantry.items);
+  const seenProducts = new Set<string>();
 
   for (const item of pantry.items) {
-    const qty = Number(item.quantity);
-    const unit = item.products?.unit ?? "г";
-    const name = item.products?.name ?? "Продукт";
+    if (seenProducts.has(item.product_id)) continue;
+    seenProducts.add(item.product_id);
+    const expiry = nearest.get(item.product_id) ?? null;
+    const representative =
+      pantry.items.find(
+        (row) => row.product_id === item.product_id && (expiry === null || row.expires_at === expiry),
+      ) ?? item;
+    const qty = totals.get(item.product_id) ?? 0;
+    const unit = representative.products?.unit ?? "г";
+    const name = representative.products?.name ?? "Продукт";
     const histMax = pantry.historicalMaxMap.get(item.product_id);
     const scalePercent = calculateScalePercent(qty, unit, histMax);
     const isLow = isLowStock(scalePercent);
-    const isExpiring = isExpiringSoon(item.expires_at, today, 3);
-    const storageZone = (item.storage_zone as StorageZone) || "fridge";
+    const isExpiring = isExpiringSoon(expiry, today, 3);
+    const storageZone = (representative.storage_zone as StorageZone) || "fridge";
 
     if (isLow) lowCount += 1;
     if (isExpiring) expiringCount += 1;
 
     if (isExpiring || isLow) {
       let note = "";
-      if (isExpiring && item.expires_at) {
-        const exp = formatExpiryNote(item.expires_at, today);
-        note = todayProductIds.has(item.product_id)
-          ? `${exp} — у меню на сьогодні`
-          : exp;
+      if (isExpiring && expiry) {
+        const exp = formatExpiryNote(expiry, today);
+        note = todayProductIds.has(item.product_id) ? `${exp} — у меню на сьогодні` : exp;
       } else if (isLow) {
-        note = shoppingProductIds.has(item.product_id)
-          ? "Мало · уже в списку покупок"
-          : "Мало";
+        note = shoppingProductIds.has(item.product_id) ? "Мало · уже в списку покупок" : "Мало";
       }
 
       alertCandidates.push({
-        id: item.id,
+        id: representative.id,
         productId: item.product_id,
         name,
         qty: formatQty(qty, unit),

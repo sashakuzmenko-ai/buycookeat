@@ -31,7 +31,7 @@ function fail(path: string, message: string): never {
 }
 
 /**
- * Додає позицію на склад або збільшує кількість, якщо продукт уже є в запасах.
+ * Додає нову партію на склад (не зливає з уже наявними).
  * Пише запис у журнал руху pantry_movements (source: 'manual').
  */
 export async function addPantryItem(formData: FormData) {
@@ -40,60 +40,29 @@ export async function addPantryItem(formData: FormData) {
   const quantity = num(formData, "quantity");
   const storageZone = parseZone(str(formData, "storage_zone"));
   const expiresAt = parseDateOrNull(str(formData, "expires_at"));
+  const label = str(formData, "label").slice(0, 120);
 
   if (!productId) fail("/pantry", "Оберіть продукт");
   if (!(quantity > 0)) fail("/pantry", "Кількість має бути більше нуля");
 
-  const { data: existing, error: findError } = await supabase
-    .from("pantry_items")
-    .select("id, quantity")
-    .eq("household_id", householdId)
-    .eq("product_id", productId)
-    .maybeSingle();
+  const { error: insertError } = await supabase.from("pantry_items").insert({
+    household_id: householdId,
+    product_id: productId,
+    quantity,
+    storage_zone: storageZone,
+    expires_at: expiresAt,
+    label: label || null,
+  });
 
-  if (findError) fail("/pantry", findError.message);
+  if (insertError) fail("/pantry", insertError.message);
 
-  if (existing) {
-    const oldQty = Number(existing.quantity);
-    const newQty = oldQty + quantity;
-    const { error: updateError } = await supabase
-      .from("pantry_items")
-      .update({
-        quantity: newQty,
-        storage_zone: storageZone,
-        expires_at: expiresAt,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", existing.id);
-
-    if (updateError) fail("/pantry", updateError.message);
-
-    const { error: moveError } = await supabase.from("pantry_movements").insert({
-      household_id: householdId,
-      product_id: productId,
-      delta: quantity,
-      source: "manual",
-    });
-    if (moveError) console.error("Не вдалося записати рух:", moveError.message);
-  } else {
-    const { error: insertError } = await supabase.from("pantry_items").insert({
-      household_id: householdId,
-      product_id: productId,
-      quantity,
-      storage_zone: storageZone,
-      expires_at: expiresAt,
-    });
-
-    if (insertError) fail("/pantry", insertError.message);
-
-    const { error: moveError } = await supabase.from("pantry_movements").insert({
-      household_id: householdId,
-      product_id: productId,
-      delta: quantity,
-      source: "manual",
-    });
-    if (moveError) console.error("Не вдалося записати рух:", moveError.message);
-  }
+  const { error: moveError } = await supabase.from("pantry_movements").insert({
+    household_id: householdId,
+    product_id: productId,
+    delta: quantity,
+    source: "manual",
+  });
+  if (moveError) console.error("Не вдалося записати рух:", moveError.message);
 
   revalidatePath("/pantry");
   redirect("/pantry");

@@ -11,6 +11,7 @@ import {
   type DbShoppingItemRow,
 } from "@/lib/home";
 import { listIncomingScans } from "@/lib/scan/inbox";
+import { stockTotals } from "@/lib/pantry";
 import type { ProductInfo } from "@/lib/shopping";
 import type { ReceiptItemInput, StoreInput, StoreProductInput } from "@/lib/prices";
 import { loadFinance } from "./finance/load";
@@ -103,11 +104,8 @@ export default async function HomePage({
     rawProducts.map((p) => [p.id, p.name]),
   );
 
-  const stockMap = new Map<string, number>(
-    ((pantryItemsRes.data ?? []) as { product_id: string; quantity: number | string }[]).map((i) => [
-      i.product_id,
-      Number(i.quantity),
-    ]),
+  const stockMap = stockTotals(
+    (pantryItemsRes.data ?? []) as { product_id: string; quantity: number | string }[],
   );
 
   const historicalMaxMap = new Map<string, number>();

@@ -15,6 +15,7 @@ import {
   portionPriceUah,
   recipeReturnPath,
   scaledNeed,
+  stockMap,
 } from "../src/lib/recipes.ts";
 import {
   StorePriceIndex,
@@ -70,6 +71,9 @@ import {
   determineItemState,
   calculateWeekSufficiency,
   formatMovements,
+  lowStockLines,
+  nearestExpiry,
+  stockTotals,
   type MovementInput,
 } from "../src/lib/pantry.ts";
 import {
@@ -860,6 +864,55 @@ const okRes = calculateWeekSufficiency(testUpcoming, new Map([["chicken", 800], 
 assert.equal(okRes.willRunOut, false);
 assert.equal(okRes.message, null);
 
+const chickenBatches = [
+  { product_id: "chicken", quantity: 200 },
+  { product_id: "chicken", quantity: 300 },
+];
+const chickenStock = stockTotals(chickenBatches);
+assert.equal(chickenStock.get("chicken"), 500);
+assert.equal(stockMap([
+  { productId: "chicken", quantity: 200 },
+  { productId: "chicken", quantity: "300" },
+]).get("chicken"), 500);
+const batchCover = coverIngredients(
+  [{ productId: "chicken", name: "Курка", unit: "г", quantity: 500, optional: false }],
+  2,
+  2,
+  chickenStock,
+);
+assert.equal(batchCover[0]?.short, false);
+assert.equal(batchCover[0]?.have, 500);
+const chickenPlan = [
+  {
+    servings: null,
+    baseServings: 2,
+    ingredients: [{ productId: "chicken", quantity: 500, optional: false }],
+  },
+];
+const batchWeek = calculateWeekSufficiency(chickenPlan, chickenStock, testProducts, 2);
+assert.equal(batchWeek.willRunOut, false);
+const shortBatch = calculateWeekSufficiency(
+  chickenPlan,
+  stockTotals([{ product_id: "chicken", quantity: 200 }]),
+  testProducts,
+  2,
+);
+assert.equal(shortBatch.willRunOut, true);
+
+assert.equal(
+  nearestExpiry([
+    { product_id: "milk", expires_at: "2026-12-10" },
+    { product_id: "milk", expires_at: null },
+    { product_id: "milk", expires_at: "2026-12-05" },
+    { product_id: "bread", expires_at: null },
+  ]).get("milk"),
+  "2026-12-05",
+);
+assert.equal(
+  nearestExpiry([{ product_id: "bread", expires_at: null }]).has("bread"),
+  false,
+);
+
 // форматування руху складу
 const sampleMovements: MovementInput[] = [
   {
@@ -997,6 +1050,16 @@ assert.equal(SCAN_INPUTS.length, 5);
 assert.match(buildScanPrompt("add", []), /скріншот/i);
 assert.match(buildScanPrompt("add", []), /купив сир і сметану/);
 assert.match(buildScanPrompt("add", []), /різні види не зливай/i);
+assert.match(
+  buildScanPrompt("add", []),
+  /однаковою назвою з етикетки \(label\) і однаковим терміном \(expires_at\)/,
+);
+assert.match(buildScanPrompt("add", []), /Різні назви або різні терміни — окремі позиції/);
+// без етикетки й терміну (голос, текст) різні продукти не мають злитися
+assert.match(buildScanPrompt("add", []), /рядки того самого продукту/);
+assert.match(buildScanPrompt("add", []), /Різні продукти ніколи не об'єднуй/);
+assert.match(buildScanPrompt("add", []), /Повторювані кадри одного відео не дублюй/);
+assert.doesNotMatch(buildScanPrompt("add", []), /Однаковий продукт, що трапився кілька разів/);
 
 const scanCatalog = [{ id: "p1", name: "Сир", unit: "г" }];
 const recognized = normalizeScanResult(
@@ -1560,6 +1623,22 @@ assert.match(shoppingText([]), /порожній/);
 assert.match(shoppingText([{ name: "Хліб", checked: false }]), /Хліб/);
 assert.match(stockText([]), /Немає позицій/);
 assert.match(stockText([{ name: "Молоко", detail: "мало" }]), /Молоко/);
+const expiringLines = lowStockLines(
+  [
+    { product_id: "milk", quantity: 200, expires_at: "2026-11-28", name: "Молоко", unit: "мл" },
+    { product_id: "milk", quantity: 300, expires_at: "2026-12-15", name: "Молоко", unit: "мл" },
+    { product_id: "milk", quantity: 100, expires_at: null, name: "Молоко", unit: "мл" },
+    { product_id: "flour", quantity: 2000, expires_at: "2027-06-01", name: "Борошно", unit: "г" },
+  ],
+  "2026-11-27",
+);
+assert.equal(expiringLines.length, 1);
+assert.equal(expiringLines[0]?.name, "Молоко");
+assert.match(expiringLines[0]?.detail ?? "", /600 мл/);
+assert.match(expiringLines[0]?.detail ?? "", /Спливає завтра/);
+assert.match(stockText(expiringLines), /Закінчуються:/);
+assert.match(stockText(expiringLines), /• Молоко — 600 мл, Спливає завтра/);
+assert.doesNotMatch(stockText(expiringLines), /Борошно/);
 assert.equal(manualShoppingRow({ householdId: householdA, weekStart: "2026-11-09", title: "Хліб" }).household_id, householdA);
 assert.equal(manualShoppingRow({ householdId: householdA, weekStart: "2026-11-09", title: "Хліб" }).source, "manual");
 
@@ -1910,6 +1989,51 @@ assert.equal(filledHome.pantry.alerts[0].name, "Куряче філе");
 assert.match(filledHome.pantry.alerts[0].note, /Спливає завтра — у меню на сьогодні/);
 assert.equal(filledHome.pantry.alerts[1].name, "Молоко");
 assert.equal(filledHome.pantry.alerts[1].note, "Мало · уже в списку покупок");
+const batchHome = buildHomeModel({
+  today: "2026-11-12",
+  familyCount: 1,
+  portions: 2,
+  finance: { budget: null, receipts: [], householdCount: 0 },
+  menu: {
+    entries: [],
+    products: new Map(),
+    names: new Map(),
+    stock: stockTotals([
+      { product_id: "prod-milk", quantity: 100 },
+      { product_id: "prod-milk", quantity: 150 },
+    ]),
+  },
+  pantry: {
+    items: [
+      {
+        id: "batch-a",
+        product_id: "prod-milk",
+        quantity: 100,
+        storage_zone: "fridge",
+        expires_at: "2026-11-13",
+        products: { id: "prod-milk", name: "Молоко", category: "молочне", unit: "мл" },
+      },
+      {
+        id: "batch-b",
+        product_id: "prod-milk",
+        quantity: 150,
+        storage_zone: "fridge",
+        expires_at: "2026-12-01",
+        products: { id: "prod-milk", name: "Молоко", category: "молочне", unit: "мл" },
+      },
+    ],
+    historicalMaxMap: new Map([["prod-milk", 1000]]),
+  },
+  shopping: { items: [], stores: [], storeProducts: [], receipts: [], receiptItems: [] },
+  scans: { inboxScans: [], now: new Date("2026-11-12T12:00:00Z") },
+});
+assert.equal(batchHome.pantry.alerts.length, 1);
+assert.equal(batchHome.pantry.alerts[0]?.name, "Молоко");
+assert.equal(batchHome.pantry.alerts[0]?.qty, formatQty(250, "мл"));
+assert.match(batchHome.pantry.alerts[0]?.note ?? "", /Спливає завтра/);
+assert.equal(batchHome.pantry.expiringCount, 1);
+// лічильник на «Огляді» рахує продукти, а не партії
+assert.equal(batchHome.pantry.totalCount, 1);
 // Скани: черга містить pending скан
 assert.equal(filledHome.pendingScan?.title, "Чек із Сільпо чекає перевірки");
 assert.equal(filledHome.pendingScan?.uncertainCount, 1);

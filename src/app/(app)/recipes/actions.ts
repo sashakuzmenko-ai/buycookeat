@@ -11,6 +11,7 @@ import {
   readIngredients,
   recipeReturnPath,
 } from "@/lib/recipes";
+import { stockTotals } from "@/lib/pantry";
 import { roundQty } from "@/lib/shopping";
 import { setCooked } from "../actions";
 
@@ -135,7 +136,12 @@ export async function addMissingToShopping(formData: FormData) {
   );
   const pantry = await supabase.from("pantry_items").select("product_id, quantity");
   if (pantry.error) withMessage(path, "error", pantry.error.message);
-  const stock = new Map((pantry.data ?? []).map((row) => [row.product_id as string, Number(row.quantity)]));
+  const stock = stockTotals(
+    (pantry.data ?? []).map((row) => ({
+      product_id: row.product_id as string,
+      quantity: row.quantity as number | string,
+    })),
+  );
   const missing = coverIngredients(ingredients, Number(recipe.data.base_servings), portions, stock).filter((item) => item.short);
   if (missing.length === 0) withMessage(path, "info", "Усе потрібне вже є на складі");
   const stapleIds = new Set(rows.filter((row) => isStaple(row.products)).map((row) => row.product_id));

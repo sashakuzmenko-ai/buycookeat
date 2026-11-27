@@ -3,6 +3,22 @@
 import type { ScanMode } from "./scan-types.ts";
 
 export type StorageZone = "fridge" | "freezer" | "pantry";
+export type PackageUnit = "г" | "мл";
+
+export type PantryItemRow = {
+  id: string;
+  household_id: string;
+  product_id: string;
+  quantity: number;
+  storage_zone: StorageZone;
+  expires_at: string | null;
+  label: string | null;
+  brand: string | null;
+  package_amount: number | null;
+  package_unit: PackageUnit | null;
+  created_at: string;
+  updated_at: string;
+};
 export type MovementSource = "scan" | "cooked" | "inventory" | "manual";
 export type ScanInputType = "receipt" | "voice" | "video" | "screenshot" | "text";
 export type ScanStatus = "pending" | "confirmed" | "rejected";
