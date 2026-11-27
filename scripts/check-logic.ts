@@ -100,6 +100,7 @@ import {
   formatScanWhen,
   formatUah as formatScanUah,
   formatItemDetail,
+  formatItemDetailRow,
   parseScanItems,
   queueTitle,
   shoppingEffectLabel,
@@ -1302,6 +1303,31 @@ assert.equal(
   "200 г · OLD BAKER · вжити до 28.11.2026",
 );
 assert.equal(formatItemDetail({ packageAmount: null, packageUnit: null, brand: "OLD BAKER", expiresAt: null }), "OLD BAKER");
+assert.equal(
+  formatItemDetailRow({
+    packageAmount: 200,
+    packageUnit: "г",
+    brand: "OLD BAKER",
+    expiresAt: "2026-11-28",
+  }),
+  "200 г · OLD BAKER · вжити до 28.11.2026",
+);
+assert.equal(
+  formatItemDetailRow({ packageAmount: 200, packageUnit: "г", brand: "OLD BAKER", expiresAt: null }),
+  "200 г · OLD BAKER · термін не вказано",
+);
+assert.equal(
+  formatItemDetailRow({ packageAmount: null, packageUnit: null, brand: "OLD BAKER", expiresAt: null }),
+  "OLD BAKER · термін не вказано",
+);
+assert.equal(
+  formatItemDetailRow({ packageAmount: null, packageUnit: null, brand: "", expiresAt: null }),
+  "термін не вказано",
+);
+assert.equal(
+  formatItemDetailRow({ packageAmount: null, packageUnit: null, brand: "", expiresAt: "2026-11-28" }),
+  "вжити до 28.11.2026",
+);
 assert.equal(parseScanItems([{ quantity: 0, name: "Порожньо" }]).length, 0);
 
 assert.equal(resolveCaptureType("screenshot", { images: 1, audio: false, fromVideo: false, text: "", note: "" }), "screenshot");

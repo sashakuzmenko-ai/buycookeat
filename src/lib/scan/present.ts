@@ -188,6 +188,15 @@ export function formatItemDetail(
   return parts.join(" · ");
 }
 
+/** Підпис деталей для перегляду у вебі; без терміну додає «термін не вказано». */
+export function formatItemDetailRow(
+  item: Pick<ScanItem, "packageAmount" | "packageUnit" | "brand" | "expiresAt">,
+): string {
+  const detail = formatItemDetail(item);
+  if (item.expiresAt) return detail;
+  return detail ? `${detail} · термін не вказано` : "термін не вказано";
+}
+
 export function parseScanItems(value: unknown): ScanItem[] {
   if (!Array.isArray(value)) return [];
   const items: ScanItem[] = [];
