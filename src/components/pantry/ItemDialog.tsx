@@ -70,9 +70,17 @@ export function ItemDialog({
         {isEdit && <input type="hidden" name="id" value={item!.id} />}
 
         {isEdit ? (
-          <div>
-            <span className="block text-[13px] font-semibold text-ink-2 mb-1">Продукт</span>
-            <div className="font-semibold text-base text-ink">{item!.name}</div>
+          <div className="flex flex-col gap-3">
+            <div>
+              <span className="block text-[13px] font-semibold text-ink-2 mb-1">Продукт</span>
+              <div className="font-semibold text-base text-ink">{item!.productName}</div>
+            </div>
+            {item!.label ? (
+              <div>
+                <span className="block text-[13px] font-semibold text-ink-2 mb-1">Назва на етикетці</span>
+                <div className="text-base text-ink">{item!.label}</div>
+              </div>
+            ) : null}
           </div>
         ) : (
           <div>
@@ -95,6 +103,22 @@ export function ItemDialog({
                 </option>
               ))}
             </select>
+          </div>
+        )}
+
+        {!isEdit && (
+          <div>
+            <label htmlFor="pantry-label-input" className="mb-1.5 block text-[13px] font-semibold text-ink-2">
+              Назва на етикетці (необов&apos;язково)
+            </label>
+            <input
+              id="pantry-label-input"
+              name="label"
+              type="text"
+              maxLength={120}
+              placeholder="як на упаковці"
+              className="w-full min-h-[44px] rounded-12 border border-line-strong bg-surface px-3.5 py-2 text-[15px] text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-menu-tint"
+            />
           </div>
         )}
 

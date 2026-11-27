@@ -1,6 +1,7 @@
 // Порції, залишки складу і ціна порції для каталогу та картки рецепта.
 // Без звернень до бази — перевіряється scripts/check-logic.ts.
 
+import { stockTotals } from "./pantry.ts";
 import { MEAL_TYPES, MEAL_LABELS, type MealType } from "./seed-data.ts";
 import { formatQty } from "./shopping.ts";
 
@@ -276,10 +277,5 @@ export function formatPortions(amount: number): string {
 }
 
 export function stockMap(rows: readonly { productId: string; quantity: number | string }[]): Map<string, number> {
-  const map = new Map<string, number>();
-  for (const row of rows) {
-    const quantity = Number(row.quantity);
-    if (row.productId && Number.isFinite(quantity)) map.set(row.productId, quantity);
-  }
-  return map;
+  return stockTotals(rows.map((row) => ({ product_id: row.productId, quantity: row.quantity })));
 }

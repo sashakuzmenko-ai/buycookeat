@@ -66,7 +66,8 @@ export function PantryScreen({
   const filteredItems = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return items.filter((item) => {
-      if (q && !item.name.toLowerCase().includes(q)) return false;
+      const haystack = `${item.name} ${item.productName} ${item.label ?? ""}`.toLowerCase();
+      if (q && !haystack.includes(q)) return false;
       if (filter === "low" && !item.isLow) return false;
       if (filter === "expiring" && !item.isExpiring) return false;
       return true;

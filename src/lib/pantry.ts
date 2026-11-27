@@ -85,6 +85,70 @@ export function formatExpiryNote(
   return `Термін до ${formatDate(expiresAt)}`;
 }
 
+/** Сума кількостей за продуктом: кілька партій не затирають одна одну. */
+export function stockTotals(
+  rows: readonly { product_id: string; quantity: number | string }[],
+): Map<string, number> {
+  const totals = new Map<string, number>();
+  for (const row of rows) {
+    if (!row.product_id) continue;
+    const quantity = Number(row.quantity);
+    if (!Number.isFinite(quantity)) continue;
+    totals.set(row.product_id, (totals.get(row.product_id) ?? 0) + quantity);
+  }
+  return totals;
+}
+
+/** Найближчий термін за продуктом. Партії без дати не враховуються. */
+export function nearestExpiry(
+  rows: readonly { product_id: string; expires_at?: string | null }[],
+): Map<string, string> {
+  const nearest = new Map<string, string>();
+  for (const row of rows) {
+    const expiry = row.expires_at;
+    if (!row.product_id || !expiry) continue;
+    const prev = nearest.get(row.product_id);
+    if (!prev || expiry < prev) nearest.set(row.product_id, expiry);
+  }
+  return nearest;
+}
+
+/**
+ * Рядки «Закінчуються»: один на продукт, кількість — сума партій,
+ * термін — найближчий (без дати не береться).
+ */
+export function lowStockLines(
+  rows: readonly {
+    product_id: string;
+    quantity: number | string;
+    expires_at?: string | null;
+    name: string;
+    unit: string;
+  }[],
+  today = todayISO(),
+): { name: string; detail: string }[] {
+  const totals = stockTotals(rows);
+  const nearest = nearestExpiry(rows);
+  const meta = new Map<string, { name: string; unit: string }>();
+  for (const row of rows) {
+    const name = row.name.trim();
+    if (!row.product_id || !name || meta.has(row.product_id)) continue;
+    meta.set(row.product_id, { name, unit: row.unit || "шт" });
+  }
+  const lines: { name: string; detail: string }[] = [];
+  for (const [productId, quantity] of totals) {
+    const info = meta.get(productId);
+    if (!info) continue;
+    const expiry = nearest.get(productId) ?? null;
+    const low = isLowStock(calculateScalePercent(quantity, info.unit));
+    const expiring = isExpiringSoon(expiry, today);
+    if (!low && !expiring) continue;
+    const detail = [formatQty(quantity, info.unit), formatExpiryNote(expiry, today)].filter(Boolean).join(", ");
+    lines.push({ name: info.name, detail });
+  }
+  return lines;
+}
+
 export type ItemState = "normal" | "low" | "expiring";
 
 /** Визначає статус позиції для LevelBar. Термін придатності має найвищий пріоритет. */
@@ -110,7 +174,10 @@ export function pluralizePositions(count: number): string {
 export type PantryItemView = {
   id: string;
   productId: string;
+  /** Назва рядка: етикетка партії, якщо є, інакше назва продукту. */
   name: string;
+  productName: string;
+  label: string | null;
   category: string;
   unit: string;
   quantity: number;

@@ -7,6 +7,7 @@ import { getContext } from "@/lib/context";
 import { parseWeekParam, weekDays } from "@/lib/dates";
 import { buildShoppingTelegramGroups, weekRangeLabel } from "@/lib/shopping-present";
 import { NEED_FAMILY_LINK } from "@/lib/shopping-telegram";
+import { stockTotals } from "@/lib/pantry";
 import { buildShoppingList, manualShoppingRow, type PlanLine, type ProductInfo } from "@/lib/shopping";
 
 function telegramSentLabel(count: number): string {
@@ -222,7 +223,9 @@ export async function generateShopping(formData: FormData) {
   const productMap = new Map<string, ProductInfo>(
     products.data!.map((p) => [p.id as string, { unit: p.unit, isStaple: p.is_staple, storeId: p.preferred_store_id }]),
   );
-  const stock = new Map(pantry.data!.map((p) => [p.product_id as string, Number(p.quantity)]));
+  const stock = stockTotals(
+    pantry.data!.map((p) => ({ product_id: p.product_id as string, quantity: p.quantity as number | string })),
+  );
   const lines = buildShoppingList(plan, portions, productMap, stock);
   const bought = new Set(previous.data!.map((r) => r.product_id as string));
 

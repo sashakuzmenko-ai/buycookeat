@@ -2,8 +2,8 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { todayISO, weekStart } from "../dates.ts";
-import { formatQty, manualShoppingRow } from "../shopping.ts";
-import { calculateScalePercent, formatExpiryNote, isExpiringSoon, isLowStock } from "../pantry.ts";
+import { manualShoppingRow } from "../shopping.ts";
+import { lowStockLines } from "../pantry.ts";
 import type { ScanItem } from "../scan-types.ts";
 import { parseScanItems } from "../scan/present.ts";
 import { decideChannelAccess, rowsForGrant, scopedHousehold, type AccessDecision } from "./access.ts";
@@ -171,23 +171,26 @@ export async function readLowStock(supabase: SupabaseClient, decision: AccessDec
   if (!householdId) return [];
   const { data, error } = await supabase
     .from("pantry_items")
-    .select("household_id, quantity, expires_at, products(name, unit)")
+    .select("household_id, product_id, quantity, expires_at, products(name, unit)")
     .eq("household_id", householdId);
   if (error || !data) return [];
   const tagged = data.flatMap((row) => {
     const product = one(row.products as { name?: string; unit?: string } | { name?: string; unit?: string }[] | null);
     const name = String(product?.name ?? "").trim();
-    const unit = String(product?.unit ?? "шт");
-    const quantity = Number(row.quantity);
-    if (!name || !Number.isFinite(quantity)) return [];
-    const expiring = isExpiringSoon(row.expires_at ? String(row.expires_at) : null);
-    const low = isLowStock(calculateScalePercent(quantity, unit));
-    if (!low && !expiring) return [];
-    const expiry = formatExpiryNote(row.expires_at ? String(row.expires_at) : null);
-    const detail = [formatQty(quantity, unit), expiry].filter(Boolean).join(", ");
-    return [{ householdId: String(row.household_id), name, detail }];
+    const productId = String(row.product_id ?? "");
+    if (!name || !productId) return [];
+    return [
+      {
+        householdId: String(row.household_id),
+        product_id: productId,
+        quantity: row.quantity as number | string,
+        expires_at: row.expires_at ? String(row.expires_at) : null,
+        name,
+        unit: String(product?.unit ?? "шт"),
+      },
+    ];
   });
-  return rowsForGrant(decision, tagged);
+  return lowStockLines(rowsForGrant(decision, tagged));
 }
 
 export async function loadOwnedItems(

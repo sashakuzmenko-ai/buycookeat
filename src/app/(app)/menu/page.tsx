@@ -2,6 +2,7 @@ import { Notice } from "@/components/Notice";
 import { MenuScreen, type MenuEntryView, type RecipeChoice, type TomorrowInfo } from "@/components/menu/menu-screen";
 import { addDays, parseWeekParam, todayISO, weekDays } from "@/lib/dates";
 import { dishStockStatus, isMenuSlot, MENU_SLOTS, shortProductIds, summarizeMenu } from "@/lib/menu";
+import { stockTotals } from "@/lib/pantry";
 import { type PlanLine, type ProductInfo } from "@/lib/shopping";
 import { getContext } from "@/lib/context";
 
@@ -149,9 +150,7 @@ export default async function MenuPage({ searchParams }: MenuPageProps) {
     ]),
   );
   const names = new Map(productRows.map((product) => [product.id, product.name]));
-  const stock = new Map(
-    ((pantryRes.data ?? []) as unknown as DbPantry[]).map((item) => [item.product_id, Number(item.quantity)]),
-  );
+  const stock = stockTotals((pantryRes.data ?? []) as unknown as DbPantry[]);
   const planned = ((entriesRes.data ?? []) as unknown as DbEntry[]).map((entry) =>
     toView(entry, portions, products, stock, names),
   );

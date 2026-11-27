@@ -13,6 +13,7 @@ import {
   formatExpiryNote,
   calculateWeekSufficiency,
   formatMovements,
+  stockTotals,
 } from "@/lib/pantry";
 import { PantryScreen } from "@/components/pantry/PantryScreen";
 
@@ -28,6 +29,8 @@ type DbPantryItem = {
   quantity: number;
   storage_zone: string;
   expires_at: string | null;
+  label: string | null;
+  created_at: string;
   products: { name: string; category: string; unit: string } | null;
 };
 
@@ -49,7 +52,7 @@ export default async function PantryPage({ searchParams }: PantryPageProps) {
   const [itemsRes, productsRes, movementsRes, histMovementsRes, upcomingRes] = await Promise.all([
     supabase
       .from("pantry_items")
-      .select("id, product_id, quantity, storage_zone, expires_at, products(name, category, unit)")
+      .select("id, product_id, quantity, storage_zone, expires_at, label, created_at, products(name, category, unit)")
       .eq("household_id", householdId),
     supabase
       .from("products")
@@ -107,11 +110,17 @@ export default async function PantryPage({ searchParams }: PantryPageProps) {
     if (d > prev) historicalMaxMap.set(pid, d);
   }
 
-  const rawItems = (itemsRes.data ?? []) as unknown as DbPantryItem[];
-  const stockMap = new Map<string, number>();
-  for (const item of rawItems) {
-    stockMap.set(item.product_id, Number(item.quantity));
-  }
+  const rawItems = ((itemsRes.data ?? []) as unknown as DbPantryItem[]).slice().sort((a, b) => {
+    const byName = (a.products?.name ?? "").localeCompare(b.products?.name ?? "", "uk");
+    if (byName !== 0) return byName;
+    if (a.expires_at !== b.expires_at) {
+      if (!a.expires_at) return 1;
+      if (!b.expires_at) return -1;
+      return a.expires_at.localeCompare(b.expires_at);
+    }
+    return String(a.created_at).localeCompare(String(b.created_at));
+  });
+  const stockMap = stockTotals(rawItems);
 
   const planLines: PlanLine[] = ((upcomingRes.data ?? []) as unknown as DbUpcomingRow[])
     .filter((r) => r.recipes)
@@ -127,45 +136,39 @@ export default async function PantryPage({ searchParams }: PantryPageProps) {
 
   const sufficiency = calculateWeekSufficiency(planLines, stockMap, productMap, portions);
 
-  const items: PantryItemView[] = rawItems
-    .map((item) => {
-      const qty = Number(item.quantity);
-      const unit = item.products?.unit ?? "г";
-      const name = item.products?.name ?? "Продукт";
-      const category = item.products?.category ?? "інше";
-      const scalePercent = calculateScalePercent(
-        qty,
-        unit,
-        historicalMaxMap.get(item.product_id),
-      );
-      const isLow = isLowStock(scalePercent);
-      const isExpiring = isExpiringSoon(item.expires_at, today);
-      const state = determineItemState(isExpiring, isLow);
-      const note =
-        isExpiring && item.expires_at
-          ? formatExpiryNote(item.expires_at, today)
-          : isLow
-            ? "Мало"
-            : null;
+  const items: PantryItemView[] = rawItems.map((item) => {
+    const qty = Number(item.quantity);
+    const unit = item.products?.unit ?? "г";
+    const productName = item.products?.name ?? "Продукт";
+    const label = item.label?.trim() || null;
+    const category = item.products?.category ?? "інше";
+    const productQty = stockMap.get(item.product_id) ?? qty;
+    const scalePercent = calculateScalePercent(productQty, unit, historicalMaxMap.get(item.product_id));
+    const isLow = isLowStock(scalePercent);
+    const isExpiring = isExpiringSoon(item.expires_at, today);
+    const state = determineItemState(isExpiring, isLow);
+    const expiryNote = formatExpiryNote(item.expires_at, today);
+    const note = expiryNote || (isLow ? "Мало" : null);
 
-      return {
-        id: item.id,
-        productId: item.product_id,
-        name,
-        category,
-        unit,
-        quantity: qty,
-        formattedQty: formatQty(qty, unit),
-        storageZone: ((item.storage_zone as StorageZone) || "pantry"),
-        expiresAt: item.expires_at,
-        scalePercent,
-        isLow,
-        isExpiring,
-        state,
-        note,
-      };
-    })
-    .sort((a, b) => a.name.localeCompare(b.name, "uk"));
+    return {
+      id: item.id,
+      productId: item.product_id,
+      name: label || productName,
+      productName,
+      label,
+      category,
+      unit,
+      quantity: qty,
+      formattedQty: formatQty(qty, unit),
+      storageZone: (item.storage_zone as StorageZone) || "pantry",
+      expiresAt: item.expires_at,
+      scalePercent,
+      isLow,
+      isExpiring,
+      state,
+      note,
+    };
+  });
 
   const movements = formatMovements((movementsRes.data ?? []) as unknown as MovementInput[]);
 

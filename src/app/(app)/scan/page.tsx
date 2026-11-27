@@ -15,7 +15,7 @@ export default async function ScanPage({ searchParams }: PageProps<"/scan">) {
   const [listed, productsRes, zonesRes, bindingRes] = await Promise.all([
     listIncomingScans(supabase, householdId),
     supabase.from("products").select("id, name, unit, category").eq("household_id", householdId).order("name"),
-    supabase.from("pantry_items").select("product_id, storage_zone").eq("household_id", householdId),
+    supabase.from("pantry_items").select("id, product_id, storage_zone, created_at").eq("household_id", householdId),
     supabase
       .from("channel_bindings")
       .select("id")
@@ -30,11 +30,21 @@ export default async function ScanPage({ searchParams }: PageProps<"/scan">) {
     return <p className="text-sm text-ink-muted-on-dark">{listed.error}</p>;
   }
 
-  const zones: Record<string, string> = {};
+  const newestZone = new Map<string, { zone: string; at: string; id: string }>();
   for (const row of zonesRes.data ?? []) {
     const productId = String(row.product_id ?? "");
     const zone = String(row.storage_zone ?? "");
-    if (productId && ZONES.has(zone)) zones[productId] = STORAGE_ZONE_LABELS[zone as StorageZone];
+    if (!productId || !ZONES.has(zone)) continue;
+    const at = String(row.created_at ?? "");
+    const id = String(row.id ?? "");
+    const prev = newestZone.get(productId);
+    if (!prev || at > prev.at || (at === prev.at && id > prev.id)) {
+      newestZone.set(productId, { zone, at, id });
+    }
+  }
+  const zones: Record<string, string> = {};
+  for (const [productId, row] of newestZone) {
+    zones[productId] = STORAGE_ZONE_LABELS[row.zone as StorageZone];
   }
 
   const products = (productsRes.data ?? []).map((row) => ({
