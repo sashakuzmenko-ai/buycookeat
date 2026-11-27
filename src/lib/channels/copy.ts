@@ -3,8 +3,26 @@
 import type { ScanInputType } from "../db-types.ts";
 import { pluralizePositions } from "../pantry.ts";
 import type { ScanItem, ScanMode } from "../scan-types.ts";
-import { formatItemQty, formatUah } from "../scan/present.ts";
+import { formatItemDetail, formatItemQty, formatUah } from "../scan/present.ts";
 import type { OutboundButton } from "./types.ts";
+
+function recognitionItemName(item: ScanItem): string {
+  const label = item.label.trim();
+  return label || item.name;
+}
+
+/** Фасування, виробник, термін; без дати — «термін не вказано». */
+function recognitionItemDetail(item: ScanItem): string {
+  const parts: string[] = [];
+  const detail = formatItemDetail(item);
+  if (detail) parts.push(detail);
+  if (!item.expiresAt) parts.push("термін не вказано");
+  return parts.join(" · ");
+}
+
+function recognitionItemLine(item: ScanItem): string {
+  return `${recognitionItemName(item)} · ${formatItemQty(item.quantity, item.unit)} · ${recognitionItemDetail(item)}`;
+}
 
 export const QUICK_HINTS = ["Що на вечерю?", "Список покупок", "Залишки"] as const;
 
@@ -134,7 +152,7 @@ export function recognitionText(input: {
   if (input.total > 0) lines.push(formatUah(input.total));
   lines.push(lead(input.inputType, input.items.length));
   const sure = input.items.filter((item) => !item.uncertain).slice(0, 12);
-  if (sure.length) lines.push(sure.map((item) => `${item.name} · ${formatItemQty(item.quantity, item.unit)}`).join("\n"));
+  if (sure.length) lines.push(sure.map((item) => recognitionItemLine(item)).join("\n"));
   const unsure = input.items.filter((item) => item.uncertain);
   if (unsure.length) {
     lines.push(`${pluralizePositions(unsure.length)} під питанням:`);
@@ -142,7 +160,7 @@ export function recognitionText(input: {
       unsure
         .slice(0, 8)
         .map((item) => {
-          const guess = `${item.name}, ${formatItemQty(item.quantity, item.unit)}?`;
+          const guess = `${recognitionItemLine(item)}?`;
           return item.raw.trim() ? `${item.raw.trim()} → ${guess}` : guess;
         })
         .join("\n"),
