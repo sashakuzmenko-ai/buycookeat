@@ -3,6 +3,7 @@
 import type { ScanInputType, ScanStatus } from "../db-types.ts";
 import { pluralizePositions } from "../pantry.ts";
 import type { ScanItem, ScanMode } from "../scan-types.ts";
+import { normalizePackageFields, parseExpiryDate } from "./products.ts";
 
 export const SCAN_INPUTS: readonly (readonly [ScanInputType, string, string, string])[] = [
   ["receipt", "Чек", "Фото — позиції, магазин, сума", "фото чека"],
@@ -166,6 +167,27 @@ export function formatItemQty(quantity: number, unit: string): string {
   return `${text} ${unit}`;
 }
 
+function formatExpiryLabel(iso: string): string {
+  const [year, month, day] = iso.split("-");
+  if (!year || !month || !day) return iso;
+  return `${day}.${month}.${year}`;
+}
+
+/** Підпис позиції з фасування, виробника й терміну; відсутнє пропускається. */
+export function formatItemDetail(
+  item: Pick<ScanItem, "packageAmount" | "packageUnit" | "brand" | "expiresAt">,
+): string {
+  const parts: string[] = [];
+  if (item.packageAmount !== null && item.packageUnit) {
+    const text = new Intl.NumberFormat("uk-UA", { maximumFractionDigits: 2 }).format(item.packageAmount);
+    parts.push(`${text} ${item.packageUnit}`);
+  }
+  const brand = item.brand.trim();
+  if (brand) parts.push(brand);
+  if (item.expiresAt) parts.push(`вжити до ${formatExpiryLabel(item.expiresAt)}`);
+  return parts.join(" · ");
+}
+
 export function parseScanItems(value: unknown): ScanItem[] {
   if (!Array.isArray(value)) return [];
   const items: ScanItem[] = [];
@@ -176,6 +198,10 @@ export function parseScanItems(value: unknown): ScanItem[] {
     if (!(quantity > 0) || !Number.isFinite(quantity)) continue;
     const price = Number(record.price);
     const productId = typeof record.productId === "string" && record.productId ? record.productId : null;
+    const packageAmountRaw = record.packageAmount ?? record.package_amount;
+    const packageUnitRaw = record.packageUnit ?? record.package_unit;
+    const fromPackage = normalizePackageFields(packageAmountRaw, packageUnitRaw);
+    const expiresRaw = record.expiresAt ?? record.expires_at;
     items.push({
       raw: String(record.raw ?? "").slice(0, 120),
       productId,
@@ -185,6 +211,11 @@ export function parseScanItems(value: unknown): ScanItem[] {
       quantity: Math.round(quantity * 100) / 100,
       uncertain: Boolean(record.uncertain),
       price: Number.isFinite(price) && price > 0 ? Math.round(price * 100) / 100 : null,
+      label: String(record.label ?? "").slice(0, 120),
+      brand: String(record.brand ?? "").slice(0, 80),
+      packageAmount: fromPackage.packageAmount,
+      packageUnit: fromPackage.packageUnit,
+      expiresAt: parseExpiryDate(expiresRaw),
     });
   }
   return items;

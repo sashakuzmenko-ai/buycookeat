@@ -5,7 +5,7 @@ import { productByListNumber } from "../catalog/product-number.ts";
 import { openRouterJsonChat } from "../openrouter/json-chat.ts";
 import { PRODUCT_CATEGORIES } from "../seed-data.ts";
 import { SCAN_LIMITS, type ScanItem, type ScanMode, type ScanResult, type ScanSource } from "../scan-types.ts";
-import { cleanCategory, cleanUnit, roundScanQty } from "./products.ts";
+import { cleanCategory, cleanUnit, normalizePackageFields, parseExpiryDate, roundScanQty } from "./products.ts";
 
 export type CatalogProduct = { id: string; name: string; unit: string };
 
@@ -39,16 +39,45 @@ const SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["raw", "product_number", "name", "category", "unit", "quantity", "uncertain", "price"],
+        required: [
+          "raw",
+          "product_number",
+          "name",
+          "category",
+          "unit",
+          "quantity",
+          "uncertain",
+          "price",
+          "label",
+          "brand",
+          "package_amount",
+          "package_unit",
+          "expires_at",
+        ],
         properties: {
           raw: { type: "string", description: "Як позицію названо на чеку, у замовленні або в тексті" },
           product_number: { type: "integer", description: "Номер продукту зі списку або 0, якщо такого немає" },
-          name: { type: "string", description: "Коротка загальна назва продукту українською" },
+          name: { type: "string", description: "Коротка назва виду продукту українською для довідника" },
           category: { type: "string", enum: [...PRODUCT_CATEGORIES] },
           unit: { type: "string", enum: [...UNITS] },
           quantity: { type: "number" },
           uncertain: { type: "boolean" },
           price: { type: "number", description: "Ціна позиції в гривнях або 0, якщо її не видно" },
+          label: {
+            type: "string",
+            description: "Повна назва товару з етикетки або чека, як є, до 120 символів; інакше порожній рядок",
+          },
+          brand: { type: "string", description: "Виробник або бренд з етикетки; інакше порожній рядок" },
+          package_amount: { type: "number", description: "Вага або обсяг однієї упаковки; 0, якщо не видно" },
+          package_unit: {
+            type: "string",
+            enum: ["г", "мл", ""],
+            description: "Одиниця фасування упаковки: г, мл або порожній рядок",
+          },
+          expires_at: {
+            type: "string",
+            description: "Дата «вжити до» у форматі YYYY-MM-DD або порожній рядок",
+          },
         },
       },
     },
@@ -81,12 +110,13 @@ export function buildScanPrompt(mode: ScanMode, products: readonly { name: strin
 1. Обери джерело. Якщо є текст зі списком продуктів — він головний (source = "text"), а зображення лише уточнюють. Якщо людина розбірливо диктує продукти — диктовка головна (source = "voice", або "both", коли зображення теж додають позиції). Якщо мовлення й тексту немає — працюй із зображеннями (source = "images"). Якщо нічого не розпізнано — source = "none" і порожній items.
 2. Скріншот замовлення з доставки читай як чек: магазин або сервіс у store, сума замовлення в total, кожен продукт окремою позицією. Доставку, знижки, пакування й сервісний збір пропускай.
 3. Повертай лише їжу та напої. Побутову хімію, посуд, бонуси пропускай.
-4. Зістав позицію з продуктом зі списку, якщо це той самий продукт за змістом: бренд, жирність, сорт і фасування не важать («Молоко Яготинське 2,6% 900г» → «Молоко»). Тоді вкажи його номер у product_number і його одиницю в unit. Якщо відповідника немає — product_number = 0, у name дай коротку загальну назву з великої літери, обери category та unit.
-5. quantity — завжди в одиниці продукту: г, мл або шт. Перераховуй: 1,5 кг → 1500; 0,9 л → 900; «дві пачки по 400 г» → 800; десяток яєць → 10.
-6. Однаковий продукт, що трапився кілька разів, об'єднай в одну позицію із сумарною кількістю. Не дублюй позиції з повторюваних кадрів.
-7. Якщо кількість не видно або її не назвали — оціни за звичайним фасуванням і постав uncertain = true. Так само познач нечітко прочитане або почуте.
-8. price — ціна однієї позиції в гривнях, якщо її видно на чеку чи в замовленні; інакше 0. Не вигадуй ціну.
-9. store і total заповнюй лише з чека або замовлення; інакше порожній рядок і 0.
+4. Зістав позицію з продуктом зі списку лише якщо це той самий ВИД виробу. Бренд, жирність, сорт і фасування не важать для збігу («Молоко Яготинське 2,6% 900г» → продукт «Молоко»). Але різні види не зливай: солодка й несолодка булочка, різні види хліба чи випічки — різні продукти, бо терміни придатності й списання різні. Якщо в списку є продукт того самого виду — вкажи product_number і unit із списку. Якщо немає — product_number = 0, у name коротка назва з видом («Булочка солодка», «Булочка здобна несолодка»), не загальна («Хліб», «Випічка»), обери category та unit.
+5. label — перепиши назву з етикетки або чека як є (з брендом і видом), до 120 символів; якщо не видно — порожній рядок. brand — виробник лише якщо видно. package_amount і package_unit — вага або обсяг однієї упаковки з етикетки (200 г, 0,9 л → 900 мл); не вигадуй, інакше 0 і порожній package_unit. expires_at — дата «вжити до» YYYY-MM-DD; якщо є дата виготовлення і строк придатності — порахуй «вжити до» сам; якщо дати не видно — порожній рядок. Нічого не вигадуй: невидиме лишай порожнім.
+6. quantity — завжди в одиниці продукту: г, мл або шт. Перераховуй: 1,5 кг → 1500; 0,9 л → 900; «дві пачки по 400 г» → 800; десяток яєць → 10.
+7. Однаковий продукт, що трапився кілька разів, об'єднай в одну позицію із сумарною кількістю. Не дублюй позиції з повторюваних кадрів.
+8. Якщо кількість не видно або її не назвали — оціни за звичайним фасуванням і постав uncertain = true. Так само познач нечітко прочитане або почуте.
+9. price — ціна однієї позиції в гривнях, якщо її видно на чеку чи в замовленні; інакше 0. Не вигадуй ціну.
+10. store і total заповнюй лише з чека або замовлення; інакше порожній рядок і 0.
 
 Список продуктів сім'ї (номер | назва | одиниця):
 ${list || "(порожній)"}`;
@@ -101,6 +131,7 @@ function readItem(row: ModelRow, products: readonly CatalogProduct[]): ScanItem 
   const name = String(row.name ?? "").trim().slice(0, 80);
   if (!matched && !name) return null;
   const price = Number(row.price);
+  const { packageAmount, packageUnit } = normalizePackageFields(row.package_amount, row.package_unit);
   return {
     raw: String(row.raw ?? "").trim().slice(0, 120),
     productId: matched ? matched.id : null,
@@ -110,6 +141,11 @@ function readItem(row: ModelRow, products: readonly CatalogProduct[]): ScanItem 
     quantity: roundScanQty(quantity),
     uncertain: Boolean(row.uncertain),
     price: Number.isFinite(price) && price > 0 ? roundScanQty(price) : null,
+    label: String(row.label ?? "").trim().slice(0, 120),
+    brand: String(row.brand ?? "").trim().slice(0, 80),
+    packageAmount,
+    packageUnit,
+    expiresAt: parseExpiryDate(row.expires_at),
   };
 }
 
