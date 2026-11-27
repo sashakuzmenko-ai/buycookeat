@@ -365,7 +365,8 @@ export function buildHomeModel(input: BuildHomeModelInput): HomeModel {
         : "список покупок";
 
   // 6. Склад і сповіщення
-  const totalPantryCount = pantry.items.length;
+  // рахуємо продукти, а не партії — як lowCount і expiringCount нижче
+  const totalPantryCount = new Set(pantry.items.map((item) => item.product_id)).size;
   let lowCount = 0;
   let expiringCount = 0;
   const alertCandidates: HomeAlertView[] = [];

@@ -464,7 +464,94 @@ const uniqueRows = (
 ).rows;
 const uniqueGone = !uniqueRows.some((row) => String(row.conname).includes("household_id"));
 
+// У робочій базі ролі API працюють із safeupdate: DELETE/UPDATE без WHERE відхиляються.
+// PGlite цього розширення не має, тому перевіряємо тіла функцій статично.
+// Тимчасові таблиці в пуловому з'єднанні переживають запит і належать першій ролі.
+const functions = (
+  await db.query(
+    `select p.proname, p.prosrc from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public'`,
+  )
+).rows;
+const unsafe = [];
+for (const { proname, prosrc } of functions) {
+  const body = String(prosrc).replace(/--[^\n]*/g, " ");
+  for (const [statement] of body.matchAll(/\b(?:delete\s+from|update\s+[\w.]+(?:\s+(?:as\s+)?\w+)?\s+set)\b[^;]*;/gi)) {
+    if (!/\bwhere\b/i.test(statement)) unsafe.push(`${proname}: без WHERE`);
+  }
+  if (/\bcreate\s+(?:temp|temporary)\b/i.test(body)) unsafe.push(`${proname}: тимчасова таблиця`);
+}
+const safeSqlOk = unsafe.length === 0;
+
+// Інвентаризацію підтверджують і застосунок, і бот — по черзі в одному з'єднанні.
+await seedMilkDates();
+const setByUser = await insertScan("set", [{ productId: milkId, quantity: 2 }]);
+await runAs(a, `select confirm_scan('${setByUser}')`);
+const setByBot = await insertScan("set", [{ productId: milkId, quantity: 1 }]);
+let botSetOk = false;
+try {
+  await db.exec(`select set_config('request.jwt.sub', '', false)`);
+  await db.exec(`set role service_role`);
+  await db.query(`select confirm_scan('${setByBot}')`);
+  botSetOk = true;
+} catch (error) {
+  console.error("інвентаризація ботом", error.message);
+} finally {
+  await db.exec(`reset role`);
+}
+botSetOk = botSetOk && (await batchesOf(milkId)).map((row) => row.label).join(",") === "Пізня";
+
+// Без назви в позиції лишаються найсвіжіші партії, а не перша безіменна.
+await runAs(a, `delete from pantry_items where product_id = '${milkId}'`);
+await runAs(
+  a,
+  `insert into pantry_items (household_id, product_id, quantity, expires_at, label) values
+    ('${hid}', '${milkId}', 1, '2026-12-05', null),
+    ('${hid}', '${milkId}', 1, '2026-12-10', 'Пізня')`,
+);
+const setNoLabel = await insertScan("set", [{ productId: milkId, quantity: 1, label: "" }]);
+await runAs(a, `select confirm_scan('${setNoLabel}')`);
+const noLabelRows = await batchesOf(milkId);
+const noLabelOk = noLabelRows.length === 1 && noLabelRows[0].expires === "2026-12-10";
+
+// Позиція з терміном успадковує зону партії, яку вона підтверджує.
+const zonesOf = async () =>
+  (await runAs(a, `select storage_zone from pantry_items where product_id = '${milkId}' order by storage_zone`)).map(
+    (row) => row.storage_zone,
+  );
+await runAs(a, `delete from pantry_items where product_id = '${milkId}'`);
+await runAs(
+  a,
+  `insert into pantry_items (household_id, product_id, quantity, expires_at, label, storage_zone, brand) values
+    ('${hid}', '${milkId}', 2, '2026-12-05', 'Холодна', 'fridge', 'Ферма')`,
+);
+const setZone = await insertScan("set", [{ productId: milkId, quantity: 1, expiresAt: "2026-12-05" }]);
+await runAs(a, `select confirm_scan('${setZone}')`);
+const zoneRows = await runAs(
+  a,
+  `select quantity, storage_zone, label, brand from pantry_items where product_id = '${milkId}'`,
+);
+const setZoneOk =
+  zoneRows.length === 1 &&
+  nearly(zoneRows[0].quantity, 1) &&
+  zoneRows[0].storage_zone === "fridge" &&
+  zoneRows[0].label === "Холодна" &&
+  zoneRows[0].brand === "Ферма";
+
+// Надходження без зони (покупка, зняття «приготовано») лягає туди, де продукт уже лежить.
+await adjustProduct(milkId, 1);
+const addedZones = await zonesOf();
+const addZoneOk = addedZones.length === 2 && addedZones.every((zone) => zone === "fridge");
+
+console.log(
+  `Безпека SQL ${safeSqlOk ? "OK" : `FAIL (${unsafe.join("; ")})`}, веб і бот ${botSetOk ? "OK" : "FAIL"}, без назви ${noLabelOk ? "OK" : "FAIL"}, зона інвентаризації ${setZoneOk ? "OK" : "FAIL"}, зона надходження ${addZoneOk ? "OK" : "FAIL"}`,
+);
+
 const batchesOk =
+  safeSqlOk &&
+  botSetOk &&
+  noLabelOk &&
+  setZoneOk &&
+  addZoneOk &&
   twoAddsOk &&
   mergeWithinScanOk &&
   fefoOrderOk &&

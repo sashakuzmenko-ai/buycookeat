@@ -1055,6 +1055,9 @@ assert.match(
   /однаковою назвою з етикетки \(label\) і однаковим терміном \(expires_at\)/,
 );
 assert.match(buildScanPrompt("add", []), /Різні назви або різні терміни — окремі позиції/);
+// без етикетки й терміну (голос, текст) різні продукти не мають злитися
+assert.match(buildScanPrompt("add", []), /рядки того самого продукту/);
+assert.match(buildScanPrompt("add", []), /Різні продукти ніколи не об'єднуй/);
 assert.match(buildScanPrompt("add", []), /Повторювані кадри одного відео не дублюй/);
 assert.doesNotMatch(buildScanPrompt("add", []), /Однаковий продукт, що трапився кілька разів/);
 
@@ -2029,6 +2032,8 @@ assert.equal(batchHome.pantry.alerts[0]?.name, "Молоко");
 assert.equal(batchHome.pantry.alerts[0]?.qty, formatQty(250, "мл"));
 assert.match(batchHome.pantry.alerts[0]?.note ?? "", /Спливає завтра/);
 assert.equal(batchHome.pantry.expiringCount, 1);
+// лічильник на «Огляді» рахує продукти, а не партії
+assert.equal(batchHome.pantry.totalCount, 1);
 // Скани: черга містить pending скан
 assert.equal(filledHome.pendingScan?.title, "Чек із Сільпо чекає перевірки");
 assert.equal(filledHome.pendingScan?.uncertainCount, 1);

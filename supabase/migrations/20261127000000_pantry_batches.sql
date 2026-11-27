@@ -70,7 +70,12 @@ begin
       end if;
       v_zone := nullif(btrim(coalesce(v_item ->> 'storage_zone', '')), '');
       if v_zone is null or v_zone not in ('fridge', 'freezer', 'pantry') then
-        v_zone := 'pantry';
+        select storage_zone into v_zone
+        from pantry_items
+        where household_id = p_household_id and product_id = v_pid
+        order by created_at desc, id desc
+        limit 1;
+        v_zone := coalesce(v_zone, 'pantry');
       end if;
 
       select id into v_batch_id
@@ -99,6 +104,10 @@ begin
       end if;
     else
       v_need := -v_delta;
+      perform 1 from pantry_items
+      where household_id = p_household_id and product_id = v_pid
+      for update;
+
       with ordered as (
         select
           id,
@@ -157,19 +166,11 @@ declare
   v_item_qty numeric;
   v_need numeric;
   v_take numeric;
-  v_ids uuid[];
-  v_id uuid;
-  v_row record;
-  v_src_count int;
-  v_src_full boolean;
-  v_src_id uuid;
-  v_src_expires date;
-  v_src_label text;
-  v_src_brand text;
-  v_src_pkg numeric;
-  v_src_unit text;
-  v_src_zone text;
-  v_src_created timestamptz;
+  v_dated boolean;
+  v_idx int;
+  v_pool pantry_items[];
+  v_kept numeric[];
+  v_match pantry_items;
 begin
   select * into strict v_scan from incoming_scans where id = p_scan_id;
 
@@ -272,272 +273,145 @@ begin
     end if;
 
   elsif v_scan.mode = 'set' then
-    -- Робочі таблиці сесії: search_path лишається public, тому читаємо їх як pg_temp.*.
-    create temporary table if not exists pantry_set_pool (
-      id uuid primary key,
-      quantity numeric(10, 2) not null,
-      expires_at date,
-      label text,
-      brand text,
-      package_amount numeric(10, 2),
-      package_unit text,
-      storage_zone text,
-      created_at timestamptz
-    );
-    create temporary table if not exists pantry_set_keep (
-      id uuid primary key,
-      quantity numeric(10, 2) not null,
-      expires_at date,
-      label text,
-      brand text,
-      package_amount numeric(10, 2),
-      package_unit text,
-      storage_zone text,
-      created_at timestamptz
-    );
-
+    -- Без тимчасових таблиць: з'єднання пулове, а ролі в ньому чергуються.
     for v_product_id in
-      select distinct (i ->> 'productId')::uuid
+      select distinct nullif(i ->> 'productId', '')::uuid
       from jsonb_array_elements(v_scan.items) i
-      where coalesce(i ->> 'productId', '') <> ''
-        and (i ->> 'quantity') is not null
+      where nullif(i ->> 'productId', '') is not null
         and (i ->> 'quantity')::numeric >= 0
     loop
+      perform 1 from pantry_items
+      where household_id = v_scan.household_id and product_id = v_product_id
+      for update;
+
+      -- Знімок наявних партій, від найстарішої до найновішої.
+      select coalesce(array_agg(p order by p.created_at, p.id), '{}') into v_pool
+      from pantry_items p
+      where p.household_id = v_scan.household_id and p.product_id = v_product_id;
+
       select coalesce(sum((i ->> 'quantity')::numeric), 0) into v_n
       from jsonb_array_elements(v_scan.items) i
-      where (i ->> 'productId')::uuid = v_product_id
-        and (i ->> 'quantity') is not null
+      where nullif(i ->> 'productId', '')::uuid = v_product_id
         and (i ->> 'quantity')::numeric >= 0;
 
-      select coalesce(sum(quantity), 0) into v_old
-      from pantry_items
-      where household_id = v_scan.household_id and product_id = v_product_id;
+      select coalesce(sum(u.quantity), 0) into v_old from unnest(v_pool) u;
 
       insert into pantry_movements (household_id, product_id, delta, source, scan_id)
       values (v_scan.household_id, v_product_id, v_n - v_old, 'inventory', p_scan_id);
 
-      select p.storage_zone into v_zone
-      from pantry_items p
-      where p.household_id = v_scan.household_id and p.product_id = v_product_id
-      order by p.created_at desc, p.id desc
-      limit 1;
-      if v_zone is null or v_zone not in ('fridge', 'freezer', 'pantry') then
-        v_zone := 'pantry';
-      end if;
-
-      delete from pg_temp.pantry_set_pool;
-      delete from pg_temp.pantry_set_keep;
-
-      insert into pg_temp.pantry_set_pool (
-        id, quantity, expires_at, label, brand, package_amount, package_unit, storage_zone, created_at
-      )
-      select id, quantity, expires_at, label, brand, package_amount, package_unit, storage_zone, created_at
-      from pantry_items
-      where household_id = v_scan.household_id and product_id = v_product_id;
-
-      -- Позиції з терміном стають партіями з цим терміном. Збіг за датою
-      -- (спершу та сама назва) вибуває з подальшого розподілу.
-      for v_item in select value from jsonb_array_elements(v_scan.items) loop
-        if (v_item ->> 'productId')::uuid is distinct from v_product_id then
-          continue;
-        end if;
-        if (v_item ->> 'quantity') is null then
-          continue;
-        end if;
-        v_item_qty := (v_item ->> 'quantity')::numeric;
-        if v_item_qty is null or v_item_qty <= 0 then
-          continue;
-        end if;
-        begin
-          v_expires := nullif(btrim(coalesce(v_item ->> 'expiresAt', '')), '')::date;
-        exception when others then
-          v_expires := null;
-        end;
-        if v_expires is null then
-          continue;
-        end if;
-
-        v_label := nullif(btrim(coalesce(v_item ->> 'label', '')), '');
-        v_brand := nullif(btrim(coalesce(v_item ->> 'brand', '')), '');
-        begin
-          v_pkg := nullif(btrim(coalesce(v_item ->> 'packageAmount', '')), '')::numeric;
-        exception when others then
-          v_pkg := null;
-        end;
-        if v_pkg is not null and v_pkg <= 0 then
-          v_pkg := null;
-        end if;
-        v_unit := nullif(btrim(coalesce(v_item ->> 'packageUnit', '')), '');
-        if v_unit is not null and v_unit not in ('г', 'мл') then
-          v_unit := null;
-        end if;
-
-        v_need := v_item_qty;
-        v_src_count := 0;
-        v_src_full := false;
-        v_src_id := null;
-        v_ids := array(
-          select p.id
-          from pg_temp.pantry_set_pool p
-          where p.expires_at is not distinct from v_expires
-          order by
-            case when p.label is not distinct from v_label then 0 else 1 end,
-            p.created_at asc,
-            p.id asc
-        );
-
-        foreach v_id in array v_ids loop
-          exit when v_need <= 0;
-          select * into v_row from pg_temp.pantry_set_pool where id = v_id;
-          if not found or v_row.quantity <= 0 then
-            continue;
-          end if;
-          v_take := least(v_row.quantity, v_need);
-          if v_src_count = 0 then
-            v_src_id := v_row.id;
-            v_src_full := v_take = v_row.quantity;
-            v_src_expires := v_row.expires_at;
-            v_src_label := v_row.label;
-            v_src_brand := v_row.brand;
-            v_src_pkg := v_row.package_amount;
-            v_src_unit := v_row.package_unit;
-            v_src_zone := v_row.storage_zone;
-            v_src_created := v_row.created_at;
-          end if;
-          v_src_count := v_src_count + 1;
-          if v_row.quantity - v_take <= 0 then
-            delete from pg_temp.pantry_set_pool where id = v_id;
-          else
-            update pg_temp.pantry_set_pool
-            set quantity = quantity - v_take
-            where id = v_id;
-          end if;
-          v_need := v_need - v_take;
-        end loop;
-
-        if v_need = 0 and v_src_count = 1 and v_src_full and v_src_label is not distinct from v_label then
-          insert into pg_temp.pantry_set_keep (
-            id, quantity, expires_at, label, brand, package_amount, package_unit, storage_zone, created_at
-          ) values (
-            v_src_id, v_item_qty, v_src_expires, v_src_label, v_src_brand, v_src_pkg, v_src_unit, v_src_zone, v_src_created
-          );
-        else
-          insert into pg_temp.pantry_set_keep (
-            id, quantity, expires_at, label, brand, package_amount, package_unit, storage_zone, created_at
-          ) values (
-            gen_random_uuid(), v_item_qty, v_expires, v_label, v_brand, v_pkg, v_unit, v_zone, now()
-          );
-        end if;
-      end loop;
-
-      -- Кількість без терміну забирає решту так, щоб лишились партії,
-      -- які FEFO списав би останніми. Спершу та сама назва.
-      for v_item in select value from jsonb_array_elements(v_scan.items) loop
-        if (v_item ->> 'productId')::uuid is distinct from v_product_id then
-          continue;
-        end if;
-        if (v_item ->> 'quantity') is null then
-          continue;
-        end if;
-        v_item_qty := (v_item ->> 'quantity')::numeric;
-        if v_item_qty is null or v_item_qty <= 0 then
-          continue;
-        end if;
-        begin
-          v_expires := nullif(btrim(coalesce(v_item ->> 'expiresAt', '')), '')::date;
-        exception when others then
-          v_expires := null;
-        end;
-        if v_expires is not null then
-          continue;
-        end if;
-
-        v_label := nullif(btrim(coalesce(v_item ->> 'label', '')), '');
-        v_brand := nullif(btrim(coalesce(v_item ->> 'brand', '')), '');
-        begin
-          v_pkg := nullif(btrim(coalesce(v_item ->> 'packageAmount', '')), '')::numeric;
-        exception when others then
-          v_pkg := null;
-        end;
-        if v_pkg is not null and v_pkg <= 0 then
-          v_pkg := null;
-        end if;
-        v_unit := nullif(btrim(coalesce(v_item ->> 'packageUnit', '')), '');
-        if v_unit is not null and v_unit not in ('г', 'мл') then
-          v_unit := null;
-        end if;
-
-        v_need := v_item_qty;
-        v_ids := array(
-          select p.id
-          from pg_temp.pantry_set_pool p
-          order by
-            case when p.label is not distinct from v_label then 0 else 1 end,
-            p.expires_at desc nulls first,
-            p.created_at desc,
-            p.id desc
-        );
-
-        foreach v_id in array v_ids loop
-          exit when v_need <= 0;
-          select * into v_row from pg_temp.pantry_set_pool where id = v_id;
-          if not found or v_row.quantity <= 0 then
-            continue;
-          end if;
-          v_take := least(v_row.quantity, v_need);
-          if v_take = v_row.quantity then
-            insert into pg_temp.pantry_set_keep (
-              id, quantity, expires_at, label, brand, package_amount, package_unit, storage_zone, created_at
-            ) values (
-              v_row.id, v_row.quantity, v_row.expires_at, v_row.label, v_row.brand,
-              v_row.package_amount, v_row.package_unit, v_row.storage_zone, v_row.created_at
-            );
-            delete from pg_temp.pantry_set_pool where id = v_id;
-          else
-            insert into pg_temp.pantry_set_keep (
-              id, quantity, expires_at, label, brand, package_amount, package_unit, storage_zone, created_at
-            ) values (
-              gen_random_uuid(), v_take, v_row.expires_at, v_row.label, v_row.brand,
-              v_row.package_amount, v_row.package_unit, v_row.storage_zone, v_row.created_at
-            );
-            update pg_temp.pantry_set_pool
-            set quantity = quantity - v_take
-            where id = v_id;
-          end if;
-          v_need := v_need - v_take;
-        end loop;
-
-        if v_need > 0 then
-          insert into pg_temp.pantry_set_keep (
-            id, quantity, expires_at, label, brand, package_amount, package_unit, storage_zone, created_at
-          ) values (
-            gen_random_uuid(), v_need, null, v_label, v_brand, v_pkg, v_unit, v_zone, now()
-          );
-        end if;
-      end loop;
+      v_zone := coalesce((v_pool[cardinality(v_pool)]).storage_zone, 'pantry');
+      v_kept := array_fill(0::numeric, array[cardinality(v_pool)]);
 
       delete from pantry_items
       where household_id = v_scan.household_id and product_id = v_product_id;
 
-      insert into pantry_items (
-        id, household_id, product_id, quantity, storage_zone, expires_at,
-        label, brand, package_amount, package_unit, created_at, updated_at
-      )
-      select
-        id,
-        v_scan.household_id,
-        v_product_id,
-        quantity,
-        storage_zone,
-        expires_at,
-        label,
-        brand,
-        package_amount,
-        package_unit,
-        coalesce(created_at, now()),
-        now()
-      from pg_temp.pantry_set_keep
-      where quantity > 0;
+      -- Спершу позиції з терміном, потім без нього: другі забирають те, що лишилось.
+      foreach v_dated in array array[true, false] loop
+        for v_item in select value from jsonb_array_elements(v_scan.items) loop
+          if nullif(v_item ->> 'productId', '')::uuid is distinct from v_product_id then
+            continue;
+          end if;
+          v_item_qty := (v_item ->> 'quantity')::numeric;
+          if v_item_qty is null or v_item_qty <= 0 then
+            continue;
+          end if;
+          begin
+            v_expires := nullif(btrim(coalesce(v_item ->> 'expiresAt', '')), '')::date;
+          exception when others then
+            v_expires := null;
+          end;
+          if (v_expires is not null) <> v_dated then
+            continue;
+          end if;
+
+          v_label := nullif(btrim(coalesce(v_item ->> 'label', '')), '');
+          v_brand := nullif(btrim(coalesce(v_item ->> 'brand', '')), '');
+          begin
+            v_pkg := nullif(btrim(coalesce(v_item ->> 'packageAmount', '')), '')::numeric;
+          exception when others then
+            v_pkg := null;
+          end;
+          if v_pkg is not null and v_pkg <= 0 then
+            v_pkg := null;
+          end if;
+          v_unit := nullif(btrim(coalesce(v_item ->> 'packageUnit', '')), '');
+          if v_unit is not null and v_unit not in ('г', 'мл') then
+            v_unit := null;
+          end if;
+
+          v_need := v_item_qty;
+
+          if v_dated then
+            -- Партії з тим самим терміном (спершу та сама назва) — це ці самі товари.
+            v_match := null;
+            for v_idx in
+              select s from generate_subscripts(v_pool, 1) s
+              where (v_pool[s]).expires_at = v_expires
+              order by case when (v_pool[s]).label = v_label then 0 else 1 end, s
+            loop
+              exit when v_need <= 0;
+              v_take := least((v_pool[v_idx]).quantity, v_need);
+              if v_take <= 0 then
+                continue;
+              end if;
+              if v_match.id is null then
+                v_match := v_pool[v_idx];
+              end if;
+              v_pool[v_idx].quantity := (v_pool[v_idx]).quantity - v_take;
+              v_need := v_need - v_take;
+            end loop;
+
+            insert into pantry_items (
+              household_id, product_id, quantity, storage_zone, expires_at,
+              label, brand, package_amount, package_unit, created_at
+            ) values (
+              v_scan.household_id, v_product_id, v_item_qty,
+              coalesce(v_match.storage_zone, v_zone), v_expires,
+              coalesce(v_label, v_match.label), coalesce(v_brand, v_match.brand),
+              coalesce(v_pkg, v_match.package_amount), coalesce(v_unit, v_match.package_unit),
+              coalesce(v_match.created_at, now())
+            );
+          else
+            -- Лишаються партії, які FEFO списав би останніми. Спершу та сама назва.
+            for v_idx in
+              select s from generate_subscripts(v_pool, 1) s
+              order by
+                case when (v_pool[s]).label = v_label then 0 else 1 end,
+                (v_pool[s]).expires_at desc nulls first,
+                s desc
+            loop
+              exit when v_need <= 0;
+              v_take := least((v_pool[v_idx]).quantity, v_need);
+              if v_take <= 0 then
+                continue;
+              end if;
+              v_pool[v_idx].quantity := (v_pool[v_idx]).quantity - v_take;
+              v_kept[v_idx] := v_kept[v_idx] + v_take;
+              v_need := v_need - v_take;
+            end loop;
+
+            if v_need > 0 then
+              insert into pantry_items (
+                household_id, product_id, quantity, storage_zone, expires_at,
+                label, brand, package_amount, package_unit
+              ) values (
+                v_scan.household_id, v_product_id, v_need, v_zone, null,
+                v_label, v_brand, v_pkg, v_unit
+              );
+            end if;
+          end if;
+        end loop;
+      end loop;
+
+      -- Підтверджені партії без нового терміну повертаються зі своїми даними.
+      for v_idx in select s from generate_subscripts(v_pool, 1) s loop
+        if v_kept[v_idx] > 0 then
+          v_match := v_pool[v_idx];
+          v_match.quantity := v_kept[v_idx];
+          v_match.updated_at := now();
+          insert into pantry_items values (v_match.*);
+        end if;
+      end loop;
     end loop;
   end if;
 
